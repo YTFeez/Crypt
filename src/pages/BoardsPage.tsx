@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { getBoards, createBoard, saveBoardStrokes } from "../lib/api";
 import type { Board, Stroke } from "../lib/types";
-import { supabase } from "../lib/supabase";
+import { subscribeBoard } from "../lib/subscriptions";
 
 export function BoardsPage() {
   const { user } = useAuth();
@@ -29,25 +29,19 @@ export function BoardsPage() {
   }, [reload]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !user) return;
     strokes.current = Array.isArray(active.strokes) ? [...active.strokes] : [];
     redraw();
-    const channel = supabase
-      .channel(`board-${active.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "boards", filter: `id=eq.${active.id}` },
-        (payload) => {
-          const row = payload.new as Board;
-          strokes.current = Array.isArray(row.strokes) ? row.strokes : [];
+    return subscribeBoard(active.id, () => {
+      void getBoards(user.id).then((list) => {
+        const b = list.find((x) => x.id === active.id);
+        if (b) {
+          strokes.current = Array.isArray(b.strokes) ? [...b.strokes] : [];
           redraw();
         }
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [active?.id]);
+      });
+    });
+  }, [active?.id, user]);
 
   const drawStroke = useCallback((ctx: CanvasRenderingContext2D, s: Stroke) => {
     const pts = s.points;

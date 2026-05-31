@@ -11,11 +11,9 @@ import { CallsPage } from "./pages/CallsPage";
 import { FoldersPage } from "./pages/FoldersPage";
 import { BoardsPage } from "./pages/BoardsPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { SetupPage } from "./pages/SetupPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading, configured } = useAuth();
-  if (!configured) return <Navigate to="/configuration" replace />;
+  const { user, loading } = useAuth();
   if (loading) return <div className="page-center"><div className="spinner" /></div>;
   if (!user) return <Navigate to="/connexion" replace />;
   return <>{children}</>;
@@ -25,7 +23,6 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/configuration" element={<SetupPage />} />
       <Route path="/connexion" element={<LoginPage />} />
       <Route path="/inscription" element={<RegisterPage />} />
       <Route
@@ -45,6 +42,7 @@ export default function App() {
         <Route path="tableaux" element={<BoardsPage />} />
         <Route path="parametres" element={<SettingsPage />} />
       </Route>
+      <Route path="/configuration" element={<Navigate to="/connexion" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

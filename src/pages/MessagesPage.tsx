@@ -1,7 +1,6 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { supabase } from "../lib/supabase";
 import {
   getConversations,
   getConversationMembers,
@@ -9,6 +8,7 @@ import {
   sendMessage,
   uploadFile,
 } from "../lib/api";
+import { subscribeMessages } from "../lib/subscriptions";
 import type { Conversation, Message } from "../lib/types";
 import { IconLock } from "../components/Icons";
 
@@ -56,17 +56,7 @@ export function MessagesPage() {
 
   useEffect(() => {
     if (!activeId) return;
-    const channel = supabase
-      .channel(`msgs-${activeId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${activeId}` },
-        () => void loadMessages()
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    return subscribeMessages(activeId, () => void loadMessages());
   }, [activeId, loadMessages]);
 
   useEffect(() => {

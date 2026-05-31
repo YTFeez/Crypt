@@ -59,12 +59,14 @@ git clone https://github.com/YTFeez/Crypt.git /opt/crypt/src
 nano /opt/crypt/.env
 ```
 
-Contenu de `/opt/crypt/.env` :
+Contenu de `/opt/crypt/.env` (recommandé en production) :
 
 ```env
 VITE_SUPABASE_URL=https://xxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
+
+Sans ce fichier, le site se build en **mode local** (données uniquement côté navigateur de chaque visiteur). Pour une vraie messagerie multi-utilisateurs, configurez Supabase.
 
 Puis :
 

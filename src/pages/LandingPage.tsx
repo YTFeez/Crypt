@@ -5,7 +5,7 @@ import { LogoWordmark } from "../components/Logo";
 import { IconLock, IconMessage, IconUsers, IconPhone, IconFolder, IconBoard } from "../components/Icons";
 
 export function LandingPage() {
-  const { user, configured } = useAuth();
+  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -26,9 +26,7 @@ export function LandingPage() {
           <a href="#commencer">Commencer</a>
         </nav>
         <div className="row" style={{ gap: "0.5rem" }}>
-          {!configured ? (
-            <Link to="/configuration" className="btn btn-secondary btn-sm">Configurer</Link>
-          ) : user ? (
+          {user ? (
             <Link to="/app" className="btn btn-primary btn-sm">Ouvrir l'app</Link>
           ) : (
             <>

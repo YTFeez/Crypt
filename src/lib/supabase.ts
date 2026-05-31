@@ -1,10 +1,12 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const url = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? "";
 
-export const supabaseConfigured = Boolean(url && key && !url.includes("VOTRE_PROJET"));
+export function isCloudMode(): boolean {
+  return Boolean(url && key && url.startsWith("https://") && key.length > 20);
+}
 
-export const supabase: SupabaseClient = supabaseConfigured
-  ? createClient(url!, key!)
+export const supabase: SupabaseClient = isCloudMode()
+  ? createClient(url, key)
   : (null as unknown as SupabaseClient);

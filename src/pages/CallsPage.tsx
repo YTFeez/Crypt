@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { getConversations, getActiveCalls, startCall, endCall } from "../lib/api";
 import type { Call, Conversation } from "../lib/types";
-import { supabase } from "../lib/supabase";
+import { subscribeCalls } from "../lib/subscriptions";
 
 export function CallsPage() {
   const { user } = useAuth();
@@ -23,15 +23,7 @@ export function CallsPage() {
     void reload();
   }, [reload]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel("calls-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "calls" }, () => void reload())
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [reload]);
+  useEffect(() => subscribeCalls(() => void reload()), [reload]);
 
   async function launch(kind: Call["kind"]) {
     if (!user || !selectedConv) return;

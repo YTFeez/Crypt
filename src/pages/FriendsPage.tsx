@@ -40,8 +40,15 @@ export function FriendsPage() {
 
   async function addFriend(id: string) {
     if (!user) return;
-    const { error } = await sendFriendRequest(user.id, id);
-    setMsg(error ? error.message : "Demande envoyée.");
+    const res = await sendFriendRequest(user.id, id);
+    const err = res && typeof res === "object" && "error" in res ? res.error : null;
+    const msg =
+      err && typeof err === "object" && err !== null && "message" in err
+        ? String((err as { message: string }).message)
+        : err
+          ? "Erreur"
+          : null;
+    setMsg(msg ?? "Demande envoyée.");
     await reload();
   }
 

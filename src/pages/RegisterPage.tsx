@@ -4,30 +4,24 @@ import { useAuth } from "../auth/AuthProvider";
 import { LogoWordmark } from "../components/Logo";
 
 export function RegisterPage() {
-  const { signUp, user, configured } = useAuth();
+  const { signUp, user } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (!configured) return <Navigate to="/configuration" replace />;
   if (user) return <Navigate to="/app" replace />;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setInfo(null);
     const err = await signUp(email, password, displayName);
     setLoading(false);
     if (err) setError(err);
-    else {
-      setInfo("Compte créé. Vérifiez votre e-mail si nécessaire, puis connectez-vous.");
-      setTimeout(() => navigate("/connexion"), 2500);
-    }
+    else navigate("/app");
   }
 
   return (
@@ -45,7 +39,6 @@ export function RegisterPage() {
           <h1>Inscription</h1>
           <p className="subtitle">C'est rapide et gratuit pour commencer.</p>
           {error ? <div className="alert alert-error">{error}</div> : null}
-          {info ? <div className="alert alert-success">{info}</div> : null}
           <form onSubmit={onSubmit}>
             <div className="field">
               <label htmlFor="name">Nom et prénom</label>

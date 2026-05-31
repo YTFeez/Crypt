@@ -26,23 +26,7 @@ Plateforme professionnelle : messagerie E2E, contacts, groupes, appels audio/vid
 3. Vérifiez **Database → Replication** : Realtime activé pour `messages`, `boards`, `calls`
 4. **Authentication → Providers** : activez Email
 
-### 2. Variables d'environnement
-
-```bash
-cd secure-hub
-cp .env.example .env
-```
-
-Renseignez dans `.env` :
-
-```
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbG...
-```
-
-(Ces valeurs sont dans **Project Settings → API**.)
-
-### 3. Lancer l'application
+### 2. Lancer l'application (fonctionne tout de suite)
 
 ```bash
 npm install
@@ -50,6 +34,10 @@ npm run dev
 ```
 
 Ouvrez [http://localhost:5175](http://localhost:5175).
+
+**Compte démo :** `demo@crypt.app` / `demo1234`  
+**Sans Supabase :** tout est stocké localement dans le navigateur.  
+**Avec Supabase (production) :** copiez `.env.example` → `.env` et renseignez `VITE_SUPABASE_*`.
 
 ## Structure
 

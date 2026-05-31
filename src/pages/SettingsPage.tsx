@@ -1,11 +1,17 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { updateProfile } from "../lib/api";
+import { isCloudMode } from "../lib/supabase";
 
 export function SettingsPage() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, mode } = useAuth();
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [orgName, setOrgName] = useState(profile?.org_name ?? "");
+
+  useEffect(() => {
+    setDisplayName(profile?.display_name ?? "");
+    setOrgName(profile?.org_name ?? "");
+  }, [profile]);
   const [saved, setSaved] = useState(false);
 
   async function onSubmit(e: FormEvent) {
@@ -24,7 +30,10 @@ export function SettingsPage() {
     <>
       <header className="page-header">
         <h1>Paramètres</h1>
-        <p>Profil, organisation et sécurité du compte.</p>
+        <p>
+          Mode : <span className="badge">{mode === "cloud" ? "Supabase cloud" : "Local (navigateur)"}</span>
+          {!isCloudMode() ? " — ajoutez VITE_SUPABASE_* sur le VPS pour la synchro cloud." : null}
+        </p>
       </header>
 
       <div className="panel" style={{ maxWidth: 480 }}>
@@ -57,8 +66,14 @@ export function SettingsPage() {
           <ul className="muted" style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.95rem" }}>
             <li>Chiffrement AES-GCM côté client pour les messages</li>
             <li>Clé maître dérivée du mot de passe (PBKDF2, 120k itérations)</li>
-            <li>Row Level Security activée sur toutes les tables Supabase</li>
-            <li>Fichiers stockés dans des buckets privés Supabase Storage</li>
+            {mode === "cloud" ? (
+              <>
+                <li>Row Level Security Supabase</li>
+                <li>Fichiers dans Supabase Storage</li>
+              </>
+            ) : (
+              <li>Données stockées localement dans ce navigateur</li>
+            )}
           </ul>
         </div>
       </div>

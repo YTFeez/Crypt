@@ -4,14 +4,13 @@ import { useAuth } from "../auth/AuthProvider";
 import { LogoWordmark } from "../components/Logo";
 
 export function LoginPage() {
-  const { signIn, user, configured } = useAuth();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (!configured) return <Navigate to="/configuration" replace />;
   if (user) return <Navigate to="/app" replace />;
 
   async function onSubmit(e: FormEvent) {
@@ -52,7 +51,10 @@ export function LoginPage() {
               {loading ? "Connexion…" : "Se connecter"}
             </button>
           </form>
-          <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
+          <p className="muted" style={{ marginTop: "1rem", fontSize: "0.8rem", textAlign: "center" }}>
+            Démo : <strong>demo@crypt.app</strong> / <strong>demo1234</strong>
+          </p>
+          <p className="muted" style={{ marginTop: "0.5rem", fontSize: "0.875rem", textAlign: "center" }}>
             Pas de compte ? <Link to="/inscription">Créer un compte</Link>
           </p>
         </div>
