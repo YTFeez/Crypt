@@ -1,4 +1,4 @@
-name: Deploy Crypt (VPS)
+name: Deploy Crypt (Hostinger VPS)
 
 on:
   push:
@@ -8,13 +8,21 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Déployer sur le VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
           script: |
-            set -e
-            bash /opt/crypt/src/infra/deploy.sh
+            set -euo pipefail
+            APP_DIR="/opt/crypt"
+            SRC_DIR="${APP_DIR}/src"
+            if [ ! -d "${SRC_DIR}/.git" ]; then
+              mkdir -p "${APP_DIR}"
+              git clone https://github.com/YTFeez/Crypt.git "${SRC_DIR}"
+            fi
+            bash "${SRC_DIR}/infra/deploy.sh"

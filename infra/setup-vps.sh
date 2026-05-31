@@ -1,38 +1,68 @@
 #!/usr/bin/env bash
-# Installation initiale Crypt sur Ubuntu 22+ (Hostinger VPS)
-# Usage: DOMAIN=crypt.example.fr bash setup-vps.sh
+# Installation Crypt sur Hostinger VPS (Ubuntu 22/24)
+# Usage: sudo DOMAIN=votredomaine.fr EMAIL=admin@votredomaine.fr bash setup-vps.sh
 set -euo pipefail
 
-DOMAIN="${DOMAIN:?Définissez DOMAIN= votre-domaine.fr}"
+DOMAIN="${DOMAIN:?Définissez DOMAIN=votredomaine.fr}"
+EMAIL="${EMAIL:-admin@${DOMAIN}}"
 APP_DIR="${APP_DIR:-/opt/crypt}"
 SRC_DIR="${SRC_DIR:-${APP_DIR}/src}"
+REPO_URL="${REPO_URL:-https://github.com/YTFeez/Crypt.git}"
 
-echo "==> Paquets"
-apt-get update
-apt-get install -y git nginx certbot python3-certbot-nginx curl
-
-if ! command -v node >/dev/null 2>&1; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Relancez en root : sudo DOMAIN=${DOMAIN} bash $0" >&2
+  exit 1
 fi
 
-echo "==> Dossiers"
+echo "==> Paquets système"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq git nginx certbot python3-certbot-nginx curl rsync
+
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d v)" -lt 18 ]; then
+  echo "==> Node.js 20"
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y -qq nodejs
+fi
+
+echo "==> Dossiers application"
 mkdir -p "${APP_DIR}/web-dist" "${SRC_DIR}"
 
 if [ ! -d "${SRC_DIR}/.git" ]; then
-  git clone https://github.com/YTFeez/Crypt.git "${SRC_DIR}"
+  git clone "${REPO_URL}" "${SRC_DIR}"
 fi
 
-echo "==> nginx"
-sed "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${SRC_DIR}/infra/nginx.conf" > /etc/nginx/sites-available/crypt
+if [ ! -f "${APP_DIR}/.env" ]; then
+  cat > "${APP_DIR}/.env" <<'EOF'
+# Optionnel — laissez vide pour mode local (fonctionne sans Supabase)
+# VITE_SUPABASE_URL=https://xxxx.supabase.co
+# VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+EOF
+  echo "Fichier créé : ${APP_DIR}/.env"
+fi
+
+echo "==> nginx (HTTP — SSL via certbot)"
+sed "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${SRC_DIR}/infra/nginx-http-only.conf" > /etc/nginx/sites-available/crypt
 ln -sf /etc/nginx/sites-available/crypt /etc/nginx/sites-enabled/crypt
-rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 nginx -t
 systemctl enable nginx
-systemctl reload nginx
+systemctl restart nginx
+
+echo "==> Premier déploiement"
+bash "${SRC_DIR}/infra/deploy.sh"
+
+echo "==> Certificat HTTPS (Let's Encrypt)"
+if certbot --nginx -d "${DOMAIN}" --redirect --agree-tos -m "${EMAIL}" --non-interactive; then
+  echo "==> Passage à la config nginx HTTPS complète"
+  sed "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${SRC_DIR}/infra/nginx.conf" > /etc/nginx/sites-available/crypt
+  nginx -t && systemctl reload nginx
+else
+  echo "WARN: certbot a échoué — le site reste en HTTP. Vérifiez le DNS (A → IP du VPS)."
+fi
 
 echo ""
-echo "Étapes suivantes :"
-echo "  1. Créez ${APP_DIR}/.env avec VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY"
-echo "  2. bash ${SRC_DIR}/infra/deploy.sh"
-echo "  3. certbot --nginx -d ${DOMAIN} --redirect --agree-tos -m admin@${DOMAIN}"
+echo "============================================"
+echo " Crypt installé sur https://${DOMAIN}"
+echo " Éditez ${APP_DIR}/.env puis : bash ${SRC_DIR}/infra/deploy.sh"
+echo "============================================"

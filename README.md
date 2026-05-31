@@ -52,20 +52,15 @@ secure-hub/
 └── README.md
 ```
 
-## Déploiement
+## Déploiement Hostinger VPS
 
-| Méthode | Guide |
-|---------|--------|
-| **VPS Hostinger** (remplace Revise+) | **[DEPLOY-VPS.md](./DEPLOY-VPS.md)** |
-| Hébergement fichiers `public_html` | [DEPLOY-HOSTINGER.md](./DEPLOY-HOSTINGER.md) |
-
-Push sur `main` → déploiement auto si les secrets `VPS_*` sont configurés sur le repo **Crypt**.
+**[DEPLOY-HOSTINGER.md](./DEPLOY-HOSTINGER.md)** — installation, HTTPS, Supabase, GitHub Actions.
 
 ```bash
-npm run build
+curl -fsSL https://raw.githubusercontent.com/YTFeez/Crypt/main/infra/hostinger-one-shot.sh | sudo DOMAIN=votredomaine.fr EMAIL=admin@votredomaine.fr bash
 ```
 
-Uploadez le contenu de `dist/` dans `public_html` sur Hostinger.
+Mises à jour : `bash /opt/crypt/src/infra/deploy.sh`
 
 ## Prochaines étapes (optionnel)
 
