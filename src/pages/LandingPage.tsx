@@ -1,12 +1,21 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogoWordmark } from "../components/Logo";
 import { IconLock, IconMessage, IconUsers, IconPhone, IconFolder, IconBoard } from "../components/Icons";
 
 export function LandingPage() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, signInAsGuest } = useAuth();
+  const [guestLoading, setGuestLoading] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  async function tryDemo() {
+    setGuestLoading(true);
+    const err = await signInAsGuest();
+    setGuestLoading(false);
+    if (!err) navigate("/app");
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -49,8 +58,13 @@ export function LandingPage() {
         </p>
         <div className="hero-actions" id="commencer">
           <Link to={user ? "/app" : "/inscription"} className="btn btn-primary">
-            {user ? "Accéder à SecureHub" : "Créer un compte gratuit"}
+            {user ? "Accéder à Crypt" : "Créer un compte gratuit"}
           </Link>
+          {!user ? (
+            <button type="button" className="btn btn-secondary" disabled={guestLoading} onClick={() => void tryDemo()}>
+              {guestLoading ? "Chargement…" : "Essayer la démo"}
+            </button>
+          ) : null}
           <Link to="/connexion" className="btn btn-secondary">Se connecter</Link>
         </div>
       </section>

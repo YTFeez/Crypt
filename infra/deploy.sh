@@ -38,4 +38,4 @@ if command -v systemctl >/dev/null 2>&1; then
   systemctl reload nginx
 fi
 
-echo "Crypt déployé avec succès."
+echo "Crypt v$(node -p "require('./package.json').version" 2>/dev/null || echo '?') déployé avec succès."
