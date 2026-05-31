@@ -1,0 +1,76 @@
+import { FormEvent, useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
+import { LogoWordmark } from "../components/Logo";
+
+export function RegisterPage() {
+  const { signUp, user, configured } = useAuth();
+  const navigate = useNavigate();
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  if (!configured) return <Navigate to="/configuration" replace />;
+  if (user) return <Navigate to="/app" replace />;
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    const err = await signUp(email, password, displayName);
+    setLoading(false);
+    if (err) setError(err);
+    else {
+      setInfo("Compte créé. Vérifiez votre e-mail si nécessaire, puis connectez-vous.");
+      setTimeout(() => navigate("/connexion"), 2500);
+    }
+  }
+
+  return (
+    <div className="auth-split">
+      <div className="auth-brand-panel">
+        <LogoWordmark light />
+        <h2>Rejoignez votre équipe sur SecureHub.</h2>
+        <p>
+          Créez votre compte en quelques secondes. Votre clé de chiffrement est générée
+          localement — nous ne pouvons pas lire vos messages.
+        </p>
+      </div>
+      <div className="auth-form-panel">
+        <div className="auth-card">
+          <h1>Inscription</h1>
+          <p className="subtitle">C'est rapide et gratuit pour commencer.</p>
+          {error ? <div className="alert alert-error">{error}</div> : null}
+          {info ? <div className="alert alert-success">{info}</div> : null}
+          <form onSubmit={onSubmit}>
+            <div className="field">
+              <label htmlFor="name">Nom et prénom</label>
+              <input id="name" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Jean Dupont" />
+            </div>
+            <div className="field">
+              <label htmlFor="email">E-mail professionnel</label>
+              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="password">Mot de passe</label>
+              <input id="password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <p className="muted" style={{ fontSize: "0.75rem", margin: "0 0 0.75rem" }}>
+              En créant un compte, vous acceptez nos conditions d'utilisation entreprise.
+            </p>
+            <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+              {loading ? "Création…" : "S'inscrire"}
+            </button>
+          </form>
+          <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
+            Déjà membre ? <Link to="/connexion">Connexion</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
