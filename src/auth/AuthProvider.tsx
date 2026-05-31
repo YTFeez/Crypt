@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, isCloudMode } from "../lib/supabase";
-import { ensureMasterKey, clearMasterKey } from "../lib/crypto";
+import { lockVault, clearVaultMeta, restoreSessionKey } from "../lib/crypto";
 import { getMyProfile } from "../lib/api";
 import { getDataMode } from "../lib/api-router";
 import {
@@ -18,6 +18,7 @@ import {
   localLogin,
   localLogout,
   localRegister,
+  enterGuestSession,
 } from "../lib/local-db";
 import type { Profile } from "../lib/types";
 
@@ -29,6 +30,7 @@ type AuthState = {
   mode: "cloud" | "local";
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, displayName: string) => Promise<string | null>;
+  signInAsGuest: () => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -39,6 +41,11 @@ function localUserStub(id: string, email: string): User {
   return { id, email } as User;
 }
 
+async function applyLocalSession(userId: string, email: string) {
+  const p = await getMyProfile(userId);
+  return { user: localUserStub(userId, p?.email ?? email), profile: p };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [localUser, setLocalUser] = useState<User | null>(null);
@@ -47,44 +54,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mode = getDataMode();
   const cloud = isCloudMode();
 
-  const user = cloud ? session?.user ?? null : localUser;
+  const user = localUser ?? (cloud ? session?.user ?? null : null);
 
   const refreshProfile = useCallback(async () => {
-    const uid = cloud ? session?.user?.id : localUser?.id;
+    const uid = user?.id;
     if (!uid) {
       setProfile(null);
       return;
     }
     setProfile(await getMyProfile(uid));
-  }, [cloud, session?.user?.id, localUser?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (cloud) {
-        const { data } = await supabase.auth.getSession();
-        if (!cancelled) {
-          setSession(data.session);
-          setLoading(false);
-        }
-        const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-          setSession(s);
-          setLoading(false);
-        });
-        return () => {
-          cancelled = true;
-          sub.subscription.unsubscribe();
-        };
-      }
       await ensureLocalSeed();
       const id = getLocalSessionUserId();
-      if (!cancelled) {
-        if (id) {
+      if (id && !cancelled) {
+        const restored = await restoreSessionKey();
+        if (!restored) {
+          localLogout();
+        } else {
           const p = await getMyProfile(id);
-          setLocalUser(localUserStub(id, p?.email ?? ""));
+          if (p) {
+            setLocalUser(localUserStub(id, p.email));
+            setProfile(p);
+          }
         }
-        setLoading(false);
       }
+      if (cloud && !cancelled) {
+        const { data } = await supabase.auth.getSession();
+        if (data.session?.user && !id) {
+          setSession(data.session);
+        }
+        const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+          if (s?.user && !getLocalSessionUserId()) setSession(s);
+        });
+        if (!cancelled) setLoading(false);
+        return () => sub.subscription.unsubscribe();
+      }
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -97,56 +106,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      await ensureMasterKey(password);
+      const trimmed = email.trim();
+      if (!trimmed || !password) return "Renseignez e-mail et mot de passe.";
+
+      const localRes = await localLogin(trimmed, password);
+      if (!localRes.error && localRes.userId) {
+        const applied = await applyLocalSession(localRes.userId, trimmed);
+        setLocalUser(applied.user);
+        setProfile(applied.profile);
+        setSession(null);
+        return null;
+      }
+
       if (cloud) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        return error?.message ?? null;
+        const { error } = await supabase.auth.signInWithPassword({
+          email: trimmed,
+          password,
+        });
+        if (!error) {
+          const { data } = await supabase.auth.getSession();
+          setSession(data.session);
+          setLocalUser(null);
+          return null;
+        }
+        return localRes.error ?? error.message;
       }
-      const res = await localLogin(email, password);
-      if (res.error) return res.error;
-      if (res.userId) {
-        const p = await getMyProfile(res.userId);
-        setLocalUser(localUserStub(res.userId, email));
-        setProfile(p);
-      }
-      return null;
+
+      return localRes.error ?? "Connexion impossible.";
     },
     [cloud]
   );
 
   const signUp = useCallback(
     async (email: string, password: string, displayName: string) => {
-      await ensureMasterKey(password);
-      if (cloud) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { display_name: displayName } },
-        });
-        return error?.message ?? null;
+      const trimmed = email.trim();
+      if (!trimmed || !password || password.length < 6) {
+        return "Mot de passe minimum 6 caractères.";
       }
-      const res = await localRegister(email, password, displayName);
-      if (res.error) return res.error;
-      if (res.userId) {
-        localStorage.setItem("crypt-session-v1", res.userId);
-        setLocalUser(localUserStub(res.userId, email));
-        await refreshProfile();
+      if (!displayName.trim()) return "Indiquez votre nom.";
+
+      const localRes = await localRegister(trimmed, password, displayName.trim());
+      if (localRes.error) return localRes.error;
+      if (localRes.userId) {
+        const applied = await applyLocalSession(localRes.userId, trimmed);
+        setLocalUser(applied.user);
+        setProfile(applied.profile);
+        setSession(null);
+      }
+
+      if (cloud) {
+        await supabase.auth.signUp({
+          email: trimmed,
+          password,
+          options: { data: { display_name: displayName.trim() } },
+        });
       }
       return null;
     },
-    [cloud, refreshProfile]
+    [cloud]
   );
 
+  const signInAsGuest = useCallback(async () => {
+    const res = await enterGuestSession();
+    if (res.error || !res.userId) return res.error ?? "Accès invité indisponible.";
+    const applied = await applyLocalSession(res.userId, "demo@crypt.app");
+    setLocalUser(applied.user);
+    setProfile(applied.profile);
+    setSession(null);
+    return null;
+  }, []);
+
   const signOut = useCallback(async () => {
-    clearMasterKey();
+    lockVault();
+    clearVaultMeta();
+    localLogout();
+    setLocalUser(null);
+    setProfile(null);
     if (cloud) {
       await supabase.auth.signOut();
       setSession(null);
-    } else {
-      localLogout();
-      setLocalUser(null);
     }
-    setProfile(null);
   }, [cloud]);
 
   const value = useMemo(
@@ -158,10 +197,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mode,
       signIn,
       signUp,
+      signInAsGuest,
       signOut,
       refreshProfile,
     }),
-    [session, user, profile, loading, mode, signIn, signUp, signOut, refreshProfile]
+    [session, user, profile, loading, mode, signIn, signUp, signInAsGuest, signOut, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -18,17 +18,22 @@ export function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const err = await signUp(email, password, displayName);
-    setLoading(false);
-    if (err) setError(err);
-    else navigate("/app");
+    try {
+      const err = await signUp(email, password, displayName);
+      if (err) setError(err);
+      else navigate("/app", { replace: true });
+    } catch {
+      setError("Erreur lors de l'inscription.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="auth-split">
       <div className="auth-brand-panel">
         <LogoWordmark light />
-        <h2>Rejoignez votre équipe sur SecureHub.</h2>
+        <h2>Rejoignez Crypt.</h2>
         <p>
           Créez votre compte en quelques secondes. Votre clé de chiffrement est générée
           localement — nous ne pouvons pas lire vos messages.
@@ -50,7 +55,7 @@ export function RegisterPage() {
             </div>
             <div className="field">
               <label htmlFor="password">Mot de passe</label>
-              <input id="password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <p className="muted" style={{ fontSize: "0.75rem", margin: "0 0 0.75rem" }}>
               En créant un compte, vous acceptez nos conditions d'utilisation entreprise.
