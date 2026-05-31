@@ -104,12 +104,7 @@ function saveLocalUsers(users: LocalUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-function cryptoAvailable(): boolean {
-  return typeof crypto !== "undefined" && Boolean(crypto.subtle);
-}
-
 export async function ensureLocalSeed(): Promise<void> {
-  if (!cryptoAvailable()) return;
   await migrateLegacyStorage();
   if (localStorage.getItem(SEED_FLAG)) return;
 
@@ -192,12 +187,6 @@ export async function localRegister(
   password: string,
   displayName: string
 ): Promise<{ error: string | null; userId?: string }> {
-  if (!cryptoAvailable()) {
-    return {
-      error: "Chiffrement indisponible. Ouvrez le site en HTTPS (ou localhost).",
-    };
-  }
-
   try {
     await ensureLocalSeed();
     const users = getLocalUsers();
@@ -271,10 +260,6 @@ export async function localLogin(
   email: string,
   password: string
 ): Promise<{ error: string | null; userId?: string }> {
-  if (!cryptoAvailable()) {
-    return { error: "Chiffrement indisponible. Utilisez HTTPS ou localhost." };
-  }
-
   try {
     await ensureLocalSeed();
     const norm = email.trim().toLowerCase();

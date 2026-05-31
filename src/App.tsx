@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthProvider";
+import { HttpsBanner } from "./components/HttpsBanner";
 import { AppLayout } from "./layout/AppLayout";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -21,6 +22,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <>
+    <HttpsBanner />
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/connexion" element={<LoginPage />} />
@@ -45,5 +48,6 @@ export default function App() {
       <Route path="/configuration" element={<Navigate to="/connexion" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
