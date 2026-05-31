@@ -140,12 +140,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(
     async (email: string, password: string, displayName: string) => {
       const trimmed = email.trim();
-      if (!trimmed || !password || password.length < 6) {
+      if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        return "Adresse e-mail invalide.";
+      }
+      if (!password || password.length < 6) {
         return "Mot de passe minimum 6 caractères.";
       }
       if (!displayName.trim()) return "Indiquez votre nom.";
 
-      const localRes = await localRegister(trimmed, password, displayName.trim());
+      let localRes: { error: string | null; userId?: string };
+      try {
+        localRes = await localRegister(trimmed, password, displayName.trim());
+      } catch (e) {
+        return e instanceof Error ? e.message : "Erreur lors de l'inscription.";
+      }
       if (localRes.error) return localRes.error;
       if (localRes.userId) {
         const applied = await applyLocalSession(localRes.userId, trimmed);
@@ -155,11 +163,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (cloud) {
-        await supabase.auth.signUp({
-          email: trimmed,
-          password,
-          options: { data: { display_name: displayName.trim() } },
-        });
+        try {
+          const { error } = await supabase.auth.signUp({
+            email: trimmed,
+            password,
+            options: { data: { display_name: displayName.trim() } },
+          });
+          if (error && !localRes.userId) return error.message;
+        } catch {
+          /* compte local créé — cloud optionnel */
+        }
       }
       return null;
     },

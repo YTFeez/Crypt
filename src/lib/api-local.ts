@@ -1,5 +1,6 @@
 import { encryptText, decryptText } from "./crypto";
 import { loadDb, patchDb, notify, attachProfiles, uid, type Db } from "./local-db";
+import { findPublicProfiles, listPublicProfiles } from "./profile-index";
 import type {
   Profile,
   Friendship,
@@ -15,8 +16,14 @@ import type {
 const MAX_MESSAGES = 150;
 
 export async function getMyProfile(userId: string): Promise<Profile | null> {
-  const db = await loadDb();
-  return db.profiles.find((p) => p.id === userId) ?? null;
+  const pub = listPublicProfiles().find((p) => p.id === userId);
+  if (pub) return pub;
+  try {
+    const db = await loadDb();
+    return db.profiles.find((p) => p.id === userId) ?? null;
+  } catch {
+    return pub ?? null;
+  }
 }
 
 export async function updateProfile(userId: string, patch: Partial<Profile>) {
@@ -28,16 +35,7 @@ export async function updateProfile(userId: string, patch: Partial<Profile>) {
 }
 
 export async function searchProfiles(query: string, excludeId: string): Promise<Profile[]> {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  const db = await loadDb();
-  return db.profiles
-    .filter(
-      (p) =>
-        p.id !== excludeId &&
-        (p.handle.toLowerCase().includes(q) || p.display_name.toLowerCase().includes(q))
-    )
-    .slice(0, 12);
+  return findPublicProfiles(query, excludeId);
 }
 
 export async function getFriendships(userId: string): Promise<Friendship[]> {

@@ -10,12 +10,19 @@ import type {
   Call,
 } from "./types";
 import { emitRealtime } from "./realtime";
-import { hashPassword, verifyPassword, unlockVault, lockVault, clearVaultMeta, reencryptVaultIfNeeded } from "./crypto";
-import { loadVault, patchVault, migrateLegacyStorage, invalidateVaultCache } from "./storage";
+import { hashPassword, verifyPassword, unlockVault, lockVault, clearVaultMeta } from "./crypto";
+import {
+  loadVault,
+  patchVault,
+  saveVault,
+  migrateLegacyStorage,
+  invalidateVaultCache,
+} from "./storage";
+import { upsertPublicProfile, listPublicProfiles } from "./profile-index";
 
 const SESSION_KEY = "crypt-session-v1";
 const USERS_KEY = "crypt-users-v2";
-const SEED_FLAG = "crypt-seeded-v3";
+const SEED_FLAG = "crypt-seeded-v4";
 
 export type LocalUser = {
   id: string;
@@ -60,9 +67,29 @@ export function uid() {
   return crypto.randomUUID();
 }
 
-async function readDb(): Promise<Db> {
-  const raw = await loadVault<Db>();
+export function getLocalSessionUserId(): string | null {
+  return localStorage.getItem(SESSION_KEY);
+}
+
+function requireSessionId(): string {
+  const id = getLocalSessionUserId();
+  if (!id) throw new Error("Session requise");
+  return id;
+}
+
+export async function readDb(userId?: string): Promise<Db> {
+  const id = userId ?? requireSessionId();
+  const raw = await loadVault<Db>(id);
   return { ...emptyDb(), ...raw };
+}
+
+export async function patchDb(mutate: (db: Db) => void, userId?: string) {
+  const id = userId ?? requireSessionId();
+  await patchVault(id, (v) => {
+    const db = { ...emptyDb(), ...(v as Db) };
+    mutate(db);
+    Object.assign(v, db);
+  });
 }
 
 export function getLocalUsers(): LocalUser[] {
@@ -77,7 +104,12 @@ function saveLocalUsers(users: LocalUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
+function cryptoAvailable(): boolean {
+  return typeof crypto !== "undefined" && Boolean(crypto.subtle);
+}
+
 export async function ensureLocalSeed(): Promise<void> {
+  if (!cryptoAvailable()) return;
   await migrateLegacyStorage();
   if (localStorage.getItem(SEED_FLAG)) return;
 
@@ -108,6 +140,8 @@ export async function ensureLocalSeed(): Promise<void> {
     created_at: now,
   };
   db.profiles.push(demo, marie);
+  upsertPublicProfile(demo);
+  upsertPublicProfile(marie);
 
   saveLocalUsers([
     {
@@ -149,7 +183,7 @@ export async function ensureLocalSeed(): Promise<void> {
     created_at: now,
   });
 
-  await patchVault((v) => Object.assign(v, db));
+  await saveVault(demoId, db, true);
   localStorage.setItem(SEED_FLAG, "1");
 }
 
@@ -158,58 +192,71 @@ export async function localRegister(
   password: string,
   displayName: string
 ): Promise<{ error: string | null; userId?: string }> {
-  await ensureLocalSeed();
-  const users = getLocalUsers();
-  const norm = email.trim().toLowerCase();
-  if (users.some((u) => u.email.toLowerCase() === norm)) {
-    return { error: "Cet e-mail est déjà utilisé." };
+  if (!cryptoAvailable()) {
+    return {
+      error: "Chiffrement indisponible. Ouvrez le site en HTTPS (ou localhost).",
+    };
   }
 
-  const db = await readDb();
-  const id = uid();
-  let baseHandle = norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user";
-  let handle = baseHandle;
-  let n = 0;
-  while (db.profiles.some((p) => p.handle === handle)) {
-    n++;
-    handle = baseHandle + n;
+  try {
+    await ensureLocalSeed();
+    const users = getLocalUsers();
+    const norm = email.trim().toLowerCase();
+    if (users.some((u) => u.email.toLowerCase() === norm)) {
+      return { error: "Cet e-mail est déjà utilisé." };
+    }
+
+    const id = uid();
+    const allProfiles = listPublicProfiles();
+    let baseHandle = norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user";
+    let handle = baseHandle;
+    let n = 0;
+    while (allProfiles.some((p) => p.handle === handle)) {
+      n++;
+      handle = baseHandle + n;
+    }
+
+    clearVaultMeta();
+    invalidateVaultCache();
+
+    const unlock = await unlockVault(password, { userId: id, create: true });
+    if (!unlock.ok) {
+      return { error: unlock.error ?? "Impossible d'initialiser le chiffrement." };
+    }
+
+    const cred = await hashPassword(password);
+    const profile: Profile = {
+      id,
+      email: norm,
+      display_name: displayName.trim(),
+      handle,
+      avatar_url: null,
+      public_key: "",
+      org_name: null,
+      created_at: new Date().toISOString(),
+    };
+
+    upsertPublicProfile(profile);
+    users.push({
+      id,
+      email: norm,
+      passwordHash: cred.hash,
+      passwordSalt: cred.salt,
+      display_name: displayName.trim(),
+      handle,
+    });
+    saveLocalUsers(users);
+
+    await saveVault(id, { ...emptyDb(), profiles: [profile] });
+
+    localStorage.setItem(SESSION_KEY, id);
+    return { error: null, userId: id };
+  } catch (e) {
+    console.error("[Crypt] inscription", e);
+    return {
+      error: e instanceof Error ? e.message : "Erreur lors de l'inscription. Réessayez.",
+    };
   }
-
-  const cred = await hashPassword(password);
-  const profile: Profile = {
-    id,
-    email: norm,
-    display_name: displayName.trim(),
-    handle,
-    avatar_url: null,
-    public_key: "",
-    org_name: null,
-    created_at: new Date().toISOString(),
-  };
-
-  await patchVault((v) => {
-    const d = { ...emptyDb(), ...v } as Db;
-    d.profiles.push(profile);
-    Object.assign(v, d);
-  });
-
-  users.push({
-    id,
-    email: norm,
-    passwordHash: cred.hash,
-    passwordSalt: cred.salt,
-    display_name: displayName.trim(),
-    handle,
-  });
-  saveLocalUsers(users);
-
-  clearVaultMeta();
-  const unlock = await unlockVault(password, { userId: id, create: true });
-  if (!unlock.ok) return { error: unlock.error ?? "Impossible d'initialiser le chiffrement." };
-  await reencryptVaultIfNeeded();
-
-  localStorage.setItem(SESSION_KEY, id);
-  return { error: null, userId: id };
 }
 
 async function legacyHash(password: string): Promise<string> {
@@ -224,62 +271,70 @@ export async function localLogin(
   email: string,
   password: string
 ): Promise<{ error: string | null; userId?: string }> {
-  await ensureLocalSeed();
-  const norm = email.trim().toLowerCase();
-  const users = getLocalUsers();
-  let user = users.find((u) => u.email.toLowerCase() === norm);
-  if (!user) return { error: "E-mail ou mot de passe incorrect." };
-
-  let valid = user.passwordSalt
-    ? await verifyPassword(password, user.passwordSalt, user.passwordHash)
-    : false;
-  if (!valid && !user.passwordSalt) {
-    valid = (await legacyHash(password)) === user.passwordHash;
-    if (valid) {
-      const cred = await hashPassword(password);
-      user = { ...user, passwordHash: cred.hash, passwordSalt: cred.salt };
-      saveLocalUsers(users.map((u) => (u.id === user!.id ? user! : u)));
-    }
+  if (!cryptoAvailable()) {
+    return { error: "Chiffrement indisponible. Utilisez HTTPS ou localhost." };
   }
-  if (!valid) return { error: "E-mail ou mot de passe incorrect." };
 
-  clearVaultMeta();
-  invalidateVaultCache();
-  const unlock = await unlockVault(password, { userId: user.id, create: true });
-  if (!unlock.ok) return { error: unlock.error ?? "Erreur de déverrouillage du coffre." };
-  await reencryptVaultIfNeeded();
+  try {
+    await ensureLocalSeed();
+    const norm = email.trim().toLowerCase();
+    const users = getLocalUsers();
+    let user = users.find((u) => u.email.toLowerCase() === norm);
+    if (!user) return { error: "E-mail ou mot de passe incorrect." };
 
-  localStorage.setItem(SESSION_KEY, user.id);
-  return { error: null, userId: user.id };
+    let valid = user.passwordSalt
+      ? await verifyPassword(password, user.passwordSalt, user.passwordHash)
+      : false;
+    if (!valid && !user.passwordSalt) {
+      valid = (await legacyHash(password)) === user.passwordHash;
+      if (valid) {
+        const cred = await hashPassword(password);
+        user = { ...user, passwordHash: cred.hash, passwordSalt: cred.salt };
+        saveLocalUsers(users.map((u) => (u.id === user!.id ? user! : u)));
+      }
+    }
+    if (!valid) return { error: "E-mail ou mot de passe incorrect." };
+
+    clearVaultMeta();
+    invalidateVaultCache();
+
+    const unlock = await unlockVault(password, { userId: user.id });
+    if (!unlock.ok) {
+      const created = await unlockVault(password, { userId: user.id, create: true });
+      if (!created.ok) return { error: created.error ?? "Erreur de déverrouillage." };
+    }
+
+    const existing = await loadVault<Db>(user.id);
+    if (!existing.profiles?.length) {
+      const pub = listPublicProfiles().find((p) => p.id === user!.id);
+      if (pub) await saveVault(user.id, { ...emptyDb(), profiles: [pub] });
+    }
+
+    localStorage.setItem(SESSION_KEY, user.id);
+    return { error: null, userId: user.id };
+  } catch (e) {
+    console.error("[Crypt] connexion", e);
+    return { error: e instanceof Error ? e.message : "Erreur de connexion." };
+  }
 }
 
 export function localLogout() {
+  const id = getLocalSessionUserId();
   localStorage.removeItem(SESSION_KEY);
   lockVault();
-  invalidateVaultCache();
-}
-
-export function getLocalSessionUserId(): string | null {
-  return localStorage.getItem(SESSION_KEY);
+  if (id) invalidateVaultCache(id);
 }
 
 export async function loadDb(): Promise<Db> {
   return readDb();
 }
 
-export async function patchDb(mutate: (db: Db) => void) {
-  await patchVault((v) => {
-    const db = { ...emptyDb(), ...v } as Db;
-    mutate(db);
-    Object.assign(v, db);
-  });
-}
-
 export function attachProfiles(friendships: Friendship[], db: Db): Friendship[] {
+  const directory = new Map(listPublicProfiles().map((p) => [p.id, p]));
   return friendships.map((f) => ({
     ...f,
-    requester: db.profiles.find((p) => p.id === f.requester_id),
-    addressee: db.profiles.find((p) => p.id === f.addressee_id),
+    requester: directory.get(f.requester_id) ?? db.profiles.find((p) => p.id === f.requester_id),
+    addressee: directory.get(f.addressee_id) ?? db.profiles.find((p) => p.id === f.addressee_id),
   }));
 }
 
@@ -287,7 +342,6 @@ export function notify(channel: string) {
   emitRealtime(channel);
 }
 
-/** Accès immédiat via compte démo */
 export async function enterGuestSession(): Promise<{ error: string | null; userId?: string }> {
   return localLogin("demo@crypt.app", "demo1234");
 }

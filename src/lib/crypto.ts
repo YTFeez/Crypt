@@ -1,4 +1,3 @@
-import { invalidateVaultCache, loadVault, saveVault } from "./storage";
 
 /** Coffre chiffré — clé AES uniquement en RAM, jamais stockée en clair */
 
@@ -85,15 +84,6 @@ export async function unlockVault(
   sessionKey = await deriveAesKey(password, new Uint8Array(b64ToBuf(salt)));
   await persistSessionKey();
   return { ok: true };
-}
-
-/** Après premier déverrouillage, rechiffre les données existantes */
-export async function reencryptVaultIfNeeded(): Promise<void> {
-  if (!sessionKey) return;
-  invalidateVaultCache();
-  const data = await loadVault();
-  invalidateVaultCache();
-  await saveVault(data);
 }
 
 async function persistSessionKey() {
