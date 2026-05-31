@@ -1,6 +1,6 @@
 # Crypt — Messagerie entreprise chiffrée (Supabase)
 
-> Dépôt GitHub : [github.com/YTFeez/crypt](https://github.com/YTFeez/crypt)
+> Dépôt GitHub : [github.com/YTFeez/Crypt](https://github.com/YTFeez/Crypt)
 
 Plateforme professionnelle : messagerie E2E, contacts, groupes, appels audio/vidéo, dossiers partagés et tableaux collaboratifs.
 

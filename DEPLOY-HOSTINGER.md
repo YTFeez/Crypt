@@ -2,11 +2,11 @@
 
 ## Option A — GitHub + déploiement manuel (recommandé)
 
-1. Clonez [github.com/YTFeez/crypt](https://github.com/YTFeez/crypt).
+1. Clonez [github.com/YTFeez/Crypt](https://github.com/YTFeez/Crypt).
 2. Sur votre PC :
    ```bash
-   git clone https://github.com/YTFeez/crypt.git
-   cd crypt
+   git clone https://github.com/YTFeez/Crypt.git
+   cd Crypt
    cp .env.example .env
    # Renseignez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY
    npm ci
