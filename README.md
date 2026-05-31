@@ -64,9 +64,14 @@ secure-hub/
 └── README.md
 ```
 
-## Déploiement Hostinger
+## Déploiement
 
-Voir **[DEPLOY-HOSTINGER.md](./DEPLOY-HOSTINGER.md)** pour le guide complet (build, upload `dist/`, `.htaccess` SPA).
+| Méthode | Guide |
+|---------|--------|
+| **VPS Hostinger** (remplace Revise+) | **[DEPLOY-VPS.md](./DEPLOY-VPS.md)** |
+| Hébergement fichiers `public_html` | [DEPLOY-HOSTINGER.md](./DEPLOY-HOSTINGER.md) |
+
+Push sur `main` → déploiement auto si les secrets `VPS_*` sont configurés sur le repo **Crypt**.
 
 ```bash
 npm run build
