@@ -117,11 +117,17 @@ TALKEO_SMTP_PORT=587
 TALKEO_SMTP_SECURE=starttls
 ```
 
-3. Redéployez et redémarrez l’API :
+3. **Sans nano** — script automatique sur le VPS :
+
+```bash
+cd /opt/crypt/src && git pull
+sudo TALKEO_SMTP_PASS='votre_mot_de_passe_ionos' bash infra/configure-ionos-mail.sh
+```
+
+4. Ou redéployez :
 
 ```bash
 bash /opt/crypt/src/infra/deploy.sh
-sudo systemctl restart talkeo-api
 ```
 
 Le client appelle automatiquement `https://votredomaine.fr/api/send-verification` via `VITE_API_URL` (aucun webhook PHP requis).
