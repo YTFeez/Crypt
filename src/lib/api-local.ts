@@ -12,6 +12,7 @@ import type {
   Board,
   Call,
 } from "./types";
+import type { DesignDoc } from "./design/types";
 
 const MAX_MESSAGES = 150;
 
@@ -301,6 +302,60 @@ export async function saveBoardStrokes(boardId: string, strokes: Board["strokes"
     }
   });
   notify(`board:${boardId}`);
+  return { error: null };
+}
+
+export async function getDesigns(userId: string): Promise<DesignDoc[]> {
+  const db = await loadDb();
+  const shared = new Set(db.design_members.filter((m) => m.user_id === userId).map((m) => m.design_id));
+  return db.designs
+    .filter((d) => d.owner_id === userId || shared.has(d.id))
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+}
+
+export async function createDesign(doc: DesignDoc) {
+  await patchDb((db) => db.designs.unshift(doc));
+  notify("designs");
+  return { data: doc, error: null };
+}
+
+export async function saveDesign(doc: DesignDoc) {
+  const trimmed: DesignDoc = {
+    ...doc,
+    elements: doc.elements.slice(0, 120),
+    updated_at: new Date().toISOString(),
+  };
+  await patchDb((db) => {
+    const i = db.designs.findIndex((x) => x.id === doc.id);
+    if (i >= 0) db.designs[i] = trimmed;
+    else db.designs.unshift(trimmed);
+  });
+  notify(`design:${doc.id}`);
+  notify("designs");
+  return { error: null };
+}
+
+export async function deleteDesign(designId: string, userId: string) {
+  await patchDb((db) => {
+    const d = db.designs.find((x) => x.id === designId);
+    if (!d || d.owner_id !== userId) return;
+    db.designs = db.designs.filter((x) => x.id !== designId);
+    db.design_members = db.design_members.filter((m) => m.design_id !== designId);
+  });
+  notify("designs");
+  return { error: null };
+}
+
+export async function renameDesign(designId: string, name: string) {
+  await patchDb((db) => {
+    const d = db.designs.find((x) => x.id === designId);
+    if (d) {
+      d.name = name;
+      d.updated_at = new Date().toISOString();
+    }
+  });
+  notify("designs");
+  notify(`design:${designId}`);
   return { error: null };
 }
 

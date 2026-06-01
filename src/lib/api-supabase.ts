@@ -12,6 +12,7 @@ import type {
   Board,
   Call,
 } from "./types";
+import type { DesignDoc } from "./design/types";
 
 export async function getMyProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -241,6 +242,74 @@ export async function createBoard(userId: string, name: string, conversationId?:
 
 export async function saveBoardStrokes(boardId: string, strokes: Board["strokes"]) {
   return supabase.from("boards").update({ strokes, updated_at: new Date().toISOString() }).eq("id", boardId);
+}
+
+function rowToDesign(row: Record<string, unknown>): DesignDoc {
+  return {
+    id: row.id as string,
+    owner_id: row.owner_id as string,
+    name: row.name as string,
+    width: row.width as number,
+    height: row.height as number,
+    background: row.background as string,
+    elements: (row.elements as DesignDoc["elements"]) ?? [],
+    is_shared: Boolean(row.is_shared),
+    updated_at: row.updated_at as string,
+    created_at: row.created_at as string,
+  };
+}
+
+export async function getDesigns(userId: string): Promise<DesignDoc[]> {
+  const { data: memberRows } = await supabase.from("design_members").select("design_id").eq("user_id", userId);
+  const memberIds = (memberRows ?? []).map((r) => r.design_id);
+  const { data: owned } = await supabase.from("designs").select("*").eq("owner_id", userId);
+  let shared: DesignDoc[] = [];
+  if (memberIds.length) {
+    const { data } = await supabase.from("designs").select("*").in("id", memberIds);
+    shared = (data ?? []).map(rowToDesign);
+  }
+  const map = new Map<string, DesignDoc>();
+  [...(owned ?? []).map(rowToDesign), ...shared].forEach((d) => map.set(d.id, d));
+  return [...map.values()].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+}
+
+export async function createDesign(doc: DesignDoc) {
+  return supabase
+    .from("designs")
+    .insert({
+      id: doc.id,
+      owner_id: doc.owner_id,
+      name: doc.name,
+      width: doc.width,
+      height: doc.height,
+      background: doc.background,
+      elements: doc.elements,
+      is_shared: doc.is_shared,
+    })
+    .select()
+    .single();
+}
+
+export async function saveDesign(doc: DesignDoc) {
+  return supabase
+    .from("designs")
+    .update({
+      name: doc.name,
+      width: doc.width,
+      height: doc.height,
+      background: doc.background,
+      elements: doc.elements,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", doc.id);
+}
+
+export async function deleteDesign(designId: string, userId: string) {
+  return supabase.from("designs").delete().eq("id", designId).eq("owner_id", userId);
+}
+
+export async function renameDesign(designId: string, name: string) {
+  return supabase.from("designs").update({ name, updated_at: new Date().toISOString() }).eq("id", designId);
 }
 
 export async function getActiveCalls(userId: string): Promise<Call[]> {

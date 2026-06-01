@@ -9,7 +9,7 @@ import { FriendsPage } from "./pages/FriendsPage";
 import { GroupsPage } from "./pages/GroupsPage";
 import { CallsPage } from "./pages/CallsPage";
 import { FoldersPage } from "./pages/FoldersPage";
-import { BoardsPage } from "./pages/BoardsPage";
+import { DesignStudioPage } from "./pages/DesignStudioPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -39,7 +39,8 @@ export default function App() {
         <Route path="groupes" element={<GroupsPage />} />
         <Route path="appels" element={<CallsPage />} />
         <Route path="dossiers" element={<FoldersPage />} />
-        <Route path="tableaux" element={<BoardsPage />} />
+        <Route path="studio" element={<DesignStudioPage />} />
+        <Route path="tableaux" element={<Navigate to="/app/studio" replace />} />
         <Route path="parametres" element={<SettingsPage />} />
       </Route>
       <Route path="/configuration" element={<Navigate to="/connexion" replace />} />

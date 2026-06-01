@@ -37,6 +37,24 @@ export function subscribeBoard(boardId: string, onUpdate: () => void): () => voi
   return subscribeRealtime(`board:${boardId}`, onUpdate);
 }
 
+export function subscribeDesign(designId: string, onUpdate: () => void): () => void {
+  if (!designId) return () => undefined;
+  if (isCloudMode()) {
+    const channel = supabase
+      .channel(`design-${designId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "designs", filter: `id=eq.${designId}` },
+        onUpdate
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }
+  return subscribeRealtime(`design:${designId}`, onUpdate);
+}
+
 export function subscribeCalls(onUpdate: () => void): () => void {
   if (isCloudMode()) {
     const channel = supabase

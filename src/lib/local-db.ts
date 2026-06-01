@@ -9,6 +9,7 @@ import type {
   Board,
   Call,
 } from "./types";
+import type { DesignDoc } from "./design/types";
 import { emitRealtime } from "./realtime";
 import {
   hashPassword,
@@ -52,6 +53,8 @@ export type Db = {
   folder_items: FolderItem[];
   boards: Board[];
   board_members: { board_id: string; user_id: string }[];
+  designs: DesignDoc[];
+  design_members: { design_id: string; user_id: string }[];
   calls: Call[];
 };
 
@@ -67,6 +70,8 @@ function emptyDb(): Db {
     folder_items: [],
     boards: [],
     board_members: [],
+    designs: [],
+    design_members: [],
     calls: [],
   };
 }

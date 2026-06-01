@@ -137,8 +137,8 @@ export function LandingPage() {
         </article>
         <article className="bento-card span-6">
           <div className="bento-icon"><IconBoard size={24} /></div>
-          <h3>Tableaux collaboratifs</h3>
-          <p>Brainstorming synchronisé en direct pour vos ateliers créatifs.</p>
+          <h3>Studio de création</h3>
+          <p>Affiches, posts réseaux sociaux et présentations — comme Canva, intégré à Crypt.</p>
         </article>
         <article className="bento-card span-6">
           <div className="bento-icon"><IconShield size={24} /></div>

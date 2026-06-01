@@ -18,7 +18,7 @@ const nav = [
   { to: "/app/groupes", label: "Groupes", Icon: IconUsers },
   { to: "/app/appels", label: "Appels", Icon: IconPhone },
   { to: "/app/dossiers", label: "Dossiers", Icon: IconFolder },
-  { to: "/app/tableaux", label: "Tableaux", Icon: IconBoard },
+  { to: "/app/studio", label: "Studio", Icon: IconBoard },
 ] as const;
 
 export function AppLayout() {
