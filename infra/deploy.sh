@@ -28,6 +28,13 @@ git fetch origin main
 git checkout main
 git pull --ff-only origin main
 
+ensure_env() {
+  local key="$1" val="$2"
+  if ! grep -q "^${key}=" "${ENV_FILE}" 2>/dev/null; then
+    echo "${key}=${val}" >> "${ENV_FILE}"
+  fi
+}
+
 if [ -f "${ENV_FILE}" ]; then
   log "Variables .env"
   cp "${ENV_FILE}" .env
@@ -46,10 +53,19 @@ EOF
   cp "${ENV_FILE}" .env
 fi
 
-# Renseigner VITE_API_URL si absent
-if ! grep -q '^VITE_API_URL=' .env 2>/dev/null; then
-  DOMAIN_GUESS=$(grep -oP 'server_name \K[^;]+' /etc/nginx/sites-available/crypt 2>/dev/null | head -1 || echo "")
+# Complète .env si créé avant l'install (ex. SMTP seul)
+JWT_GEN=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p -c 64)
+ADMIN_GEN=$(openssl rand -hex 24 2>/dev/null || head -c 24 /dev/urandom | xxd -p -c 48)
+ensure_env "TALKEO_JWT_SECRET" "${JWT_GEN}"
+ensure_env "TALKEO_ADMIN_KEY" "${ADMIN_GEN}"
+ensure_env "TALKEO_DATABASE_PATH" "${APP_DIR}/data/talkeo.db"
+ensure_env "TALKEO_API_PORT" "8787"
+cp "${ENV_FILE}" .env
+
+if ! grep -q '^VITE_API_URL=' "${ENV_FILE}" 2>/dev/null; then
+  DOMAIN_GUESS=$(grep -rh 'server_name' /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $2}' | tr -d ';' | grep -v '^_' | head -1 || echo "")
   if [ -n "${DOMAIN_GUESS}" ]; then
+    echo "VITE_API_URL=https://${DOMAIN_GUESS}" >> "${ENV_FILE}"
     echo "VITE_API_URL=https://${DOMAIN_GUESS}" >> .env
   fi
 fi
@@ -59,8 +75,15 @@ npm ci --prefer-offline --no-audit
 
 log "API Talkeo (serveur)"
 mkdir -p "${APP_DIR}/data"
+if id www-data >/dev/null 2>&1; then
+  chown www-data:www-data "${APP_DIR}/data"
+  chmod 750 "${APP_DIR}/data"
+fi
 cd "${SRC_DIR}/server"
 npm ci --prefer-offline --no-audit
+if id www-data >/dev/null 2>&1; then
+  chown -R www-data:www-data "${SRC_DIR}/server"
+fi
 cd "${SRC_DIR}"
 
 log "Build production"
