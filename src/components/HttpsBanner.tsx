@@ -21,7 +21,7 @@ export function HttpsBanner() {
       <a href={httpsUrl} style={{ fontWeight: 600 }}>
         HTTPS
       </a>
-      . L&apos;inscription fonctionne quand même avec chiffrement de secours.
+      . Chiffrement Argon2id + AES-256-GCM actif ; HTTPS reste recommandé pour le transport.
     </div>
   );
 }

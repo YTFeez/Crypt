@@ -321,7 +321,7 @@ export async function startCall(conversationId: string, userId: string, kind: Ca
     started_by: userId,
     kind,
     status: "ringing",
-    room_token: crypto.randomUUID(),
+    room_token: uid(),
     started_at: new Date().toISOString(),
     ended_at: null,
   };

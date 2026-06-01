@@ -2,6 +2,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { updateProfile } from "../lib/api";
 import { isCloudMode } from "../lib/supabase";
+import { getCryptoProfile } from "../lib/crypto";
+
+const cryptoInfo = getCryptoProfile();
 
 export function SettingsPage() {
   const { user, profile, refreshProfile, mode } = useAuth();
@@ -64,8 +67,12 @@ export function SettingsPage() {
         <div className="panel-header"><strong>Sécurité</strong></div>
         <div className="panel-body">
           <ul className="muted" style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.95rem" }}>
-            <li>Chiffrement AES-GCM côté client pour les messages</li>
-            <li>Clé maître dérivée du mot de passe (PBKDF2, 120k itérations)</li>
+            <li>Chiffrement {cryptoInfo.cipher} côté client (messages, coffre)</li>
+            <li>Clé maître : {cryptoInfo.kdf} (résistant GPU, RFC 9106)</li>
+            <li>Moteur : {cryptoInfo.backend === "webcrypto" ? "Web Crypto (HTTPS)" : "Noble (secours HTTP)"}</li>
+            {!cryptoInfo.secureContext ? (
+              <li style={{ color: "var(--warning, #b45309)" }}>Activez HTTPS pour le contexte sécurisé navigateur</li>
+            ) : null}
             {mode === "cloud" ? (
               <>
                 <li>Row Level Security Supabase</li>

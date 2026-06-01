@@ -1,13 +1,25 @@
 import { gcm } from "@noble/ciphers/aes.js";
+import { argon2idAsync } from "@noble/hashes/argon2.js";
 import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
 import { sha256 } from "@noble/hashes/sha2.js";
+import { randomBytes } from "./secure-random";
 
-/** Coffre chiffré — Web Crypto (HTTPS) ou @noble (HTTP de secours) */
+/**
+ * Coffre zero-knowledge côté client
+ * — KDF : Argon2id (RFC 9106, résistant GPU/ASIC)
+ * — Chiffrement : AES-256-GCM (authentifié)
+ * — HTTPS : Web Crypto matériel ; HTTP : @noble (même algorithmes)
+ */
 
-const VAULT_META = "crypt-vault-meta-v3";
+const VAULT_META_KEY = "crypt-vault-meta-v4";
+const VAULT_META_LEGACY = "crypt-vault-meta-v3";
 const SESSION_KEY_RAM = "crypt-sk-ram";
-const PBKDF2_ITERS = 210_000;
 
+/** OWASP / RFC 9106 — coût élevé mais utilisable dans le navigateur */
+const ARGON2 = { t: 3, m: 12288, p: 1, dkLen: 32 } as const;
+const PBKDF2_ITERS_LEGACY = 210_000;
+
+type KdfAlg = "argon2id" | "pbkdf2";
 const useSubtle = typeof crypto !== "undefined" && Boolean(crypto.subtle);
 
 type Session =
@@ -22,7 +34,25 @@ export function usesFallbackCrypto(): boolean {
 
 export function isHttpsRecommended(): boolean {
   if (typeof window === "undefined") return false;
-  return !window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1";
+  return (
+    !window.isSecureContext &&
+    location.hostname !== "localhost" &&
+    location.hostname !== "127.0.0.1"
+  );
+}
+
+export function getCryptoProfile(): {
+  kdf: string;
+  cipher: string;
+  secureContext: boolean;
+  backend: "webcrypto" | "noble";
+} {
+  return {
+    kdf: "Argon2id",
+    cipher: "AES-256-GCM",
+    secureContext: typeof window !== "undefined" && window.isSecureContext,
+    backend: useSubtle ? "webcrypto" : "noble",
+  };
 }
 
 function bufToB64(buf: ArrayBuffer | Uint8Array): string {
@@ -39,73 +69,125 @@ function b64ToU8(b64: string): Uint8Array {
   return u8;
 }
 
-function randomBytes(n: number): Uint8Array {
-  const u8 = new Uint8Array(n);
-  crypto.getRandomValues(u8);
-  return u8;
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
-async function deriveSubtleKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  const enc = new TextEncoder();
-  const base = await crypto.subtle!.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle!.deriveKey(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERS, hash: "SHA-256" },
-    base,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
+function readVaultMetaRaw(): string | null {
+  return localStorage.getItem(VAULT_META_KEY) ?? localStorage.getItem(VAULT_META_LEGACY);
 }
 
-function deriveNobleKey(password: string, salt: Uint8Array): Uint8Array {
-  return pbkdf2(sha256, new TextEncoder().encode(password), salt, { c: PBKDF2_ITERS, dkLen: 32 });
+function writeVaultMeta(meta: VaultMeta) {
+  localStorage.removeItem(VAULT_META_LEGACY);
+  localStorage.setItem(VAULT_META_KEY, JSON.stringify(meta));
 }
 
-async function deriveSession(password: string, salt: Uint8Array): Promise<Session> {
-  if (useSubtle) return { mode: "subtle", key: await deriveSubtleKey(password, salt) };
-  return { mode: "noble", key: deriveNobleKey(password, salt) };
+async function deriveArgon2Key(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  const pass = new TextEncoder().encode(password);
+  return argon2idAsync(pass, salt, { ...ARGON2 });
 }
 
-export async function hashPassword(password: string, saltB64?: string): Promise<{ hash: string; salt: string }> {
-  const salt = saltB64 ? b64ToU8(saltB64) : randomBytes(16);
+function derivePbkdf2Legacy(password: string, salt: Uint8Array): Uint8Array {
+  return pbkdf2(sha256, new TextEncoder().encode(password), salt, {
+    c: PBKDF2_ITERS_LEGACY,
+    dkLen: 32,
+  });
+}
+
+async function deriveMasterKey(
+  password: string,
+  salt: Uint8Array,
+  kdf: KdfAlg
+): Promise<Uint8Array> {
+  if (kdf === "argon2id") return deriveArgon2Key(password, salt);
   if (useSubtle) {
     const enc = new TextEncoder();
-    const base = await crypto.subtle!.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
+    const base = await crypto.subtle!.importKey("raw", enc.encode(password), "PBKDF2", false, [
+      "deriveBits",
+    ]);
     const bits = await crypto.subtle!.deriveBits(
-      { name: "PBKDF2", salt, iterations: PBKDF2_ITERS, hash: "SHA-256" },
+      { name: "PBKDF2", salt, iterations: PBKDF2_ITERS_LEGACY, hash: "SHA-256" },
       base,
       256
     );
-    return { hash: bufToB64(bits), salt: bufToB64(salt) };
+    return new Uint8Array(bits);
   }
-  const key = deriveNobleKey(password, salt);
-  return { hash: bufToB64(key), salt: bufToB64(salt) };
+  return derivePbkdf2Legacy(password, salt);
 }
 
-export async function verifyPassword(password: string, salt: string, expectedHash: string): Promise<boolean> {
-  const { hash } = await hashPassword(password, salt);
-  return hash === expectedHash;
+async function deriveSubtleAesKey(master: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle!.importKey("raw", master, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-type VaultMeta = { salt: string; verifier: string; userId: string };
+async function deriveSession(password: string, salt: Uint8Array, kdf: KdfAlg): Promise<Session> {
+  const master = await deriveMasterKey(password, salt, kdf);
+  if (useSubtle) return { mode: "subtle", key: await deriveSubtleAesKey(master) };
+  return { mode: "noble", key: master };
+}
+
+export async function hashPassword(
+  password: string,
+  saltB64?: string
+): Promise<{ hash: string; salt: string; kdf: KdfAlg }> {
+  const salt = saltB64 ? b64ToU8(saltB64) : randomBytes(16);
+  const key = await deriveArgon2Key(password, salt);
+  return { hash: bufToB64(key), salt: bufToB64(salt), kdf: "argon2id" };
+}
+
+export async function verifyPassword(
+  password: string,
+  salt: string,
+  expectedHash: string,
+  kdf: KdfAlg = "argon2id"
+): Promise<boolean> {
+  const derived = await deriveMasterKey(password, b64ToU8(salt), kdf);
+  return timingSafeEqual(bufToB64(derived), expectedHash);
+}
+
+type VaultMeta = {
+  salt: string;
+  verifier: string;
+  userId: string;
+  kdf?: KdfAlg;
+  v?: number;
+};
 
 export function isVaultUnlocked(): boolean {
   return session !== null;
+}
+
+async function upgradeVaultKdf(meta: VaultMeta, password: string): Promise<VaultMeta> {
+  if (meta.kdf === "argon2id" && meta.v === 4) return meta;
+  const cred = await hashPassword(password);
+  const upgraded: VaultMeta = {
+    salt: cred.salt,
+    verifier: cred.hash,
+    userId: meta.userId,
+    kdf: "argon2id",
+    v: 4,
+  };
+  writeVaultMeta(upgraded);
+  return upgraded;
 }
 
 export async function unlockVault(
   password: string,
   opts?: { userId?: string; create?: boolean }
 ): Promise<{ ok: boolean; error?: string }> {
-  const raw = localStorage.getItem(VAULT_META);
+  const raw = readVaultMetaRaw();
   if (raw) {
-    const meta = JSON.parse(raw) as VaultMeta;
+    let meta = JSON.parse(raw) as VaultMeta;
     if (opts?.userId && meta.userId !== opts.userId) {
       return { ok: false, error: "Session d'un autre compte. Déconnectez-vous d'abord." };
     }
-    const valid = await verifyPassword(password, meta.salt, meta.verifier);
+    const kdf: KdfAlg = meta.kdf ?? "pbkdf2";
+    const valid = await verifyPassword(password, meta.salt, meta.verifier, kdf);
     if (!valid) return { ok: false, error: "Mot de passe incorrect." };
-    session = await deriveSession(password, b64ToU8(meta.salt));
+    meta = await upgradeVaultKdf(meta, password);
+    session = await deriveSession(password, b64ToU8(meta.salt), "argon2id");
     await persistSessionKey();
     return { ok: true };
   }
@@ -113,9 +195,9 @@ export async function unlockVault(
     return { ok: false, error: "Aucun coffre — créez un compte." };
   }
   const { hash, salt } = await hashPassword(password);
-  const meta: VaultMeta = { salt, verifier: hash, userId: opts.userId };
-  localStorage.setItem(VAULT_META, JSON.stringify(meta));
-  session = await deriveSession(password, b64ToU8(salt));
+  const meta: VaultMeta = { salt, verifier: hash, userId: opts.userId, kdf: "argon2id", v: 4 };
+  writeVaultMeta(meta);
+  session = await deriveSession(password, b64ToU8(salt), "argon2id");
   await persistSessionKey();
   return { ok: true };
 }
@@ -161,7 +243,14 @@ export function lockVault() {
 
 export function clearVaultMeta() {
   lockVault();
-  localStorage.removeItem(VAULT_META);
+  localStorage.removeItem(VAULT_META_KEY);
+  localStorage.removeItem(VAULT_META_LEGACY);
+}
+
+/** Hachage SHA-256 (anciens comptes) — sans Web Crypto */
+export function sha256B64(input: string): string {
+  const h = sha256(new TextEncoder().encode(input));
+  return bufToB64(h);
 }
 
 export async function encryptText(plain: string): Promise<{ ciphertext: string; iv: string }> {

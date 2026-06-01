@@ -76,7 +76,7 @@ export function LoginPage() {
               />
             </div>
             <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: "0.5rem" }} disabled={loading}>
-              {loading ? "Connexion…" : "Se connecter"}
+              {loading ? "Déverrouillage du coffre…" : "Se connecter"}
             </button>
           </form>
           <button

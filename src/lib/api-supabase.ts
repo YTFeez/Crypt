@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { encryptText, decryptText } from "./crypto";
+import { randomUuid } from "./secure-random";
 import type {
   Profile,
   Friendship,
@@ -169,7 +170,7 @@ export async function uploadFile(
   file: File,
   bucket: "attachments" | "voice"
 ): Promise<{ path: string } | null> {
-  const path = `${userId}/${crypto.randomUUID()}-${file.name}`;
+  const path = `${userId}/${randomUuid()}-${file.name}`;
   const { error } = await supabase.storage.from(bucket).upload(path, file);
   if (error) return null;
   return { path };
@@ -256,7 +257,7 @@ export async function getActiveCalls(userId: string): Promise<Call[]> {
 }
 
 export async function startCall(conversationId: string, userId: string, kind: Call["kind"]) {
-  const roomToken = crypto.randomUUID();
+  const roomToken = randomUuid();
   return supabase
     .from("calls")
     .insert({ conversation_id: conversationId, started_by: userId, kind, status: "ringing", room_token: roomToken })

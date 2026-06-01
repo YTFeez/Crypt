@@ -10,7 +10,15 @@ import type {
   Call,
 } from "./types";
 import { emitRealtime } from "./realtime";
-import { hashPassword, verifyPassword, unlockVault, lockVault, clearVaultMeta } from "./crypto";
+import {
+  hashPassword,
+  verifyPassword,
+  unlockVault,
+  lockVault,
+  clearVaultMeta,
+  sha256B64,
+} from "./crypto";
+import { randomUuid } from "./secure-random";
 import {
   loadVault,
   patchVault,
@@ -64,7 +72,7 @@ function emptyDb(): Db {
 }
 
 export function uid() {
-  return crypto.randomUUID();
+  return randomUuid();
 }
 
 export function getLocalSessionUserId(): string | null {
@@ -248,12 +256,8 @@ export async function localRegister(
   }
 }
 
-async function legacyHash(password: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password));
-  const u8 = new Uint8Array(buf);
-  let s = "";
-  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]!);
-  return btoa(s);
+function legacyHash(password: string): string {
+  return sha256B64(password);
 }
 
 export async function localLogin(
@@ -271,7 +275,7 @@ export async function localLogin(
       ? await verifyPassword(password, user.passwordSalt, user.passwordHash)
       : false;
     if (!valid && !user.passwordSalt) {
-      valid = (await legacyHash(password)) === user.passwordHash;
+      valid = legacyHash(password) === user.passwordHash;
       if (valid) {
         const cred = await hashPassword(password);
         user = { ...user, passwordHash: cred.hash, passwordSalt: cred.salt };

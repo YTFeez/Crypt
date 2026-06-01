@@ -61,7 +61,7 @@ export function RegisterPage() {
               En créant un compte, vous acceptez nos conditions d'utilisation entreprise.
             </p>
             <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-              {loading ? "Création…" : "S'inscrire"}
+              {loading ? "Sécurisation du coffre (Argon2)…" : "S'inscrire"}
             </button>
           </form>
           <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
