@@ -127,6 +127,23 @@ function saveLocalUsers(users: LocalUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
+export function updateLocalUser(userId: string, patch: Partial<LocalUser>): boolean {
+  const users = getLocalUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx < 0) return false;
+  users[idx] = { ...users[idx]!, ...patch };
+  saveLocalUsers(users);
+  return true;
+}
+
+export function deleteLocalUser(userId: string): boolean {
+  const users = getLocalUsers();
+  const next = users.filter((u) => u.id !== userId);
+  if (next.length === users.length) return false;
+  saveLocalUsers(next);
+  return true;
+}
+
 export async function ensureLocalSeed(): Promise<void> {
   if (isServerMode()) {
     await srv.ensureServerReady();

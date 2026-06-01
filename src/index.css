@@ -90,94 +90,36 @@ button { cursor: pointer; border: none; background: none; }
   background: var(--bg-subtle);
 }
 
-/* ─── Motif « nodes » (logo Talkeo) ─── */
-.nodes-bg {
+/* ─── Fond réseau de particules (style Infinite Craft) ─── */
+.particle-network {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  overflow: hidden;
   z-index: 0;
 }
 
-.nodes-bg--light {
-  --nodes-fill: rgba(91, 33, 182, 0.09);
-  --nodes-line: rgba(91, 33, 182, 0.11);
+.settings-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 560px;
 }
 
-.nodes-bg--dark {
-  --nodes-fill: rgba(255, 255, 255, 0.22);
-  --nodes-line: rgba(255, 255, 255, 0.3);
+.settings-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
-.nodes-cluster {
-  display: block;
-  width: 100%;
-  height: auto;
+.settings-danger-zone {
+  border-color: #fecaca;
 }
 
-.nodes-bg__cluster {
-  position: absolute;
-  width: clamp(120px, 16vw, 200px);
-  opacity: 0.9;
-  animation: nodesDrift 22s ease-in-out infinite;
-}
-
-.nodes-bg__cluster--a {
-  top: 6%;
-  left: 2%;
-  transform: rotate(-14deg);
-}
-
-.nodes-bg__cluster--b {
-  bottom: 8%;
-  right: 1%;
-  width: clamp(140px, 18vw, 240px);
-  transform: rotate(16deg) scale(1.08);
-  animation-delay: -7s;
-}
-
-.nodes-bg__cluster--c {
-  top: 38%;
-  right: 8%;
-  width: clamp(90px, 11vw, 150px);
-  opacity: 0.45;
-  transform: rotate(6deg);
-  animation-delay: -14s;
-}
-
-.auth-aside .nodes-bg__cluster--a {
-  top: auto;
-  bottom: 12%;
-  left: -4%;
-  width: clamp(160px, 22vw, 280px);
-  opacity: 0.75;
-}
-
-.auth-aside .nodes-bg__cluster--b {
-  top: 18%;
-  right: -6%;
-  bottom: auto;
-  opacity: 0.55;
-}
-
-.auth-aside .nodes-bg__cluster--c {
-  top: 52%;
-  left: 28%;
-  right: auto;
-  opacity: 0.35;
-}
-
-.auth-main .nodes-bg__cluster--c {
-  display: none;
-}
-
-@keyframes nodesDrift {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 6px -8px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nodes-bg__cluster { animation: none; }
+.settings-danger-zone .panel-header {
+  color: var(--danger);
 }
 
 /* ─── Chargement & animations ─── */

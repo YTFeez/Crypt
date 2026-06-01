@@ -39,11 +39,19 @@ CREATE TABLE IF NOT EXISTS email_verifications (
 CREATE INDEX IF NOT EXISTS idx_users_handle ON users(handle);
 `;
 
+function migrateColumns(db) {
+  const cols = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  if (!cols.includes("phone")) {
+    db.exec("ALTER TABLE users ADD COLUMN phone TEXT");
+  }
+}
+
 export function openDatabase(dbPath) {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.exec(SCHEMA);
+  migrateColumns(db);
   return db;
 }
 

@@ -28,6 +28,7 @@ import { verifyCodeAgainstPending } from "../lib/email-verify";
 import { isServerMode } from "../lib/server-mode";
 import * as srv from "../lib/server-store";
 import { getApiToken } from "../lib/server-api";
+import { validateClientPassword } from "../lib/account";
 import type { Profile } from "../lib/types";
 
 export type SignUpResult =
@@ -244,9 +245,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
         return { ok: false, error: "Adresse e-mail invalide." };
       }
-      if (!password || password.length < 6) {
-        return { ok: false, error: "Mot de passe minimum 6 caractères." };
-      }
+      const pwdErr = validateClientPassword(password);
+      if (pwdErr) return { ok: false, error: pwdErr };
       if (!displayName.trim()) return { ok: false, error: "Indiquez votre nom." };
 
       let localRes: Awaited<ReturnType<typeof localRegister>>;

@@ -12,6 +12,9 @@ import {
   hashCode,
   decryptVaultPayload,
 } from "./crypto.js";
+import { rateLimit, clientIp } from "./rate-limit.js";
+import { validatePassword, normalizeEmail, isValidEmail } from "./security.js";
+import { registerAccountRoutes } from "./account.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.TALKEO_API_PORT ?? 8787);
@@ -30,8 +33,25 @@ const auth = createAuth(JWT_SECRET);
 
 const app = express();
 app.set("trust proxy", 1);
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "same-site" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  })
+);
 app.use(express.json({ limit: "12mb" }));
+
+const authIpLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 40,
+  keyFn: (req) => `ip:${clientIp(req)}`,
+});
+const authEmailLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 12,
+  keyFn: (req) => `email:${normalizeEmail(req.body?.email)}`,
+});
 
 function userPublic(row) {
   return {
@@ -41,6 +61,7 @@ function userPublic(row) {
     handle: row.handle,
     email_verified: !!row.email_verified,
     org_name: row.org_name,
+    phone: row.phone ?? null,
     created_at: row.created_at,
     vaultMeta: row.vault_salt
       ? {
@@ -68,18 +89,15 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "talkeo-api", db: DB_PATH });
 });
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => {
   try {
     const { email, password, displayName, vaultMeta, vault } = req.body ?? {};
-    const norm = String(email ?? "")
-      .trim()
-      .toLowerCase();
-    if (!norm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) {
+    const norm = normalizeEmail(email);
+    if (!isValidEmail(norm)) {
       return res.status(400).json({ error: "E-mail invalide." });
     }
-    if (!password || String(password).length < 6) {
-      return res.status(400).json({ error: "Mot de passe minimum 6 caractères." });
-    }
+    const pwdErr = validatePassword(password);
+    if (pwdErr) return res.status(400).json({ error: pwdErr });
     if (!displayName?.trim()) {
       return res.status(400).json({ error: "Nom requis." });
     }
@@ -158,11 +176,9 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authIpLimit, authEmailLimit, async (req, res) => {
   try {
-    const norm = String(req.body?.email ?? "")
-      .trim()
-      .toLowerCase();
+    const norm = normalizeEmail(req.body?.email);
     const password = String(req.body?.password ?? "");
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(norm);
     if (!user) return res.status(401).json({ error: "E-mail ou mot de passe incorrect." });
@@ -229,6 +245,8 @@ app.post("/api/auth/resend-code", async (req, res) => {
 });
 
 const requireAuth = authMiddleware(auth, db);
+
+registerAccountRoutes(app, { db, auth, requireAuth });
 
 app.get("/api/auth/me", requireAuth, (req, res) => {
   res.json({ user: userPublic(req.user) });

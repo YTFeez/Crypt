@@ -6,6 +6,7 @@ export type Profile = {
   avatar_url: string | null;
   public_key: string;
   org_name: string | null;
+  phone?: string | null;
   created_at: string;
 };
 

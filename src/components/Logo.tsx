@@ -1,4 +1,4 @@
-const LOGO_SRC = "/logo_talkeo.png";
+const LOGO_SRC = "/talkeo_logo.png";
 
 export function Logo({ size = 40, className = "" }: { size?: number; className?: string }) {
   return (

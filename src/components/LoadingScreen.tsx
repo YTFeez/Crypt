@@ -1,11 +1,11 @@
 import { LoaderBrand } from "./LoaderBrand";
-import { NodesBackground } from "./NodesBackground";
+import { ParticleNetwork } from "./ParticleNetwork";
 
 export function LoadingScreen({ label = "Chargement…" }: { label?: string }) {
   return (
     <div className="loading-screen">
       <div className="loading-screen-bg" aria-hidden />
-      <NodesBackground variant="light" />
+      <ParticleNetwork variant="light" />
       <LoaderBrand label={label} />
     </div>
   );
