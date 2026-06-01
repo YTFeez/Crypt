@@ -1040,21 +1040,36 @@ button { cursor: pointer; border: none; background: none; }
 
 .design-canvas-wrap {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  will-change: transform;
 }
 
 .design-page {
   position: relative;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  contain: layout paint;
+  isolation: isolate;
+}
+
+.design-page.is-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .design-el {
   cursor: move;
   user-select: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-.design-el.selected {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+.design-el.is-selected:not(.is-dragging-el) {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.design-el.is-dragging-el {
+  box-shadow: 0 0 0 2px var(--primary), 0 8px 24px rgba(124, 58, 237, 0.25);
+  cursor: grabbing;
+  z-index: 10000 !important;
 }
 
 .design-text-edit {

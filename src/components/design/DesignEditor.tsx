@@ -66,6 +66,11 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<DesignDoc[]>([doc]);
   const histIdxRef = useRef(0);
+  const docRef = useRef(doc);
+  const rafRef = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  docRef.current = doc;
 
   const selected = doc.elements.find((e) => e.id === selectedId) ?? null;
 
@@ -81,12 +86,22 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
     [onChange]
   );
 
+  /** Mise à jour visuelle sans empiler l'historique (déplacement / redimensionnement) */
+  const applyDocLive = useCallback(
+    (next: DesignDoc) => {
+      docRef.current = next;
+      onChange(next);
+    },
+    [onChange]
+  );
+
   const updateDoc = useCallback(
     (patch: Partial<DesignDoc> | ((d: DesignDoc) => DesignDoc)) => {
-      const next = typeof patch === "function" ? patch(doc) : { ...doc, ...patch };
+      const base = docRef.current;
+      const next = typeof patch === "function" ? patch(base) : { ...base, ...patch };
       pushHistory(next);
     },
-    [doc, pushHistory]
+    [pushHistory]
   );
 
   function undo() {
@@ -102,12 +117,16 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
   }
 
   const updateElement = useCallback(
-    (id: string, patch: Partial<DesignElement>) => {
-      updateDoc({
-        elements: doc.elements.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-      });
+    (id: string, patch: Partial<DesignElement>, live = false) => {
+      const base = docRef.current;
+      const next = {
+        ...base,
+        elements: base.elements.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+      };
+      if (live) applyDocLive(next);
+      else pushHistory(next);
     },
-    [doc.elements, updateDoc]
+    [applyDocLive, pushHistory]
   );
 
   const addElement = (type: DesignElementType) => {
@@ -212,13 +231,21 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
   }, [selected, selectedId, editingTextId, deleteSelected, updateElement, updateDoc, doc.elements]);
 
   useEffect(() => {
-    const onMove = (e: PointerEvent) => {
+    const flushDrag = (e: PointerEvent) => {
       const d = dragRef.current;
-      if (!d || !selectedId) return;
-      const el = doc.elements.find((x) => x.id === selectedId);
-      if (!el) return;
+      const sid = selectedId;
+      if (!d || !sid) return;
+
+      const applyPatch = (patch: Partial<DesignElement>) => {
+        const base = docRef.current;
+        applyDocLive({
+          ...base,
+          elements: base.elements.map((el) => (el.id === sid ? { ...el, ...patch } : el)),
+        });
+      };
+
       if (d.kind === "move") {
-        updateElement(selectedId, {
+        applyPatch({
           x: d.origX + (e.clientX - d.startX) / zoom,
           y: d.origY + (e.clientY - d.startY) / zoom,
         });
@@ -238,25 +265,55 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
           height = Math.max(12, o.height - dy);
           y = o.y + o.height - height;
         }
-        updateElement(selectedId, { x, y, width, height });
+        applyPatch({ x, y, width, height });
       }
     };
+
+    const onMove = (e: PointerEvent) => {
+      if (!dragRef.current) return;
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        flushDrag(e);
+      });
+    };
+
     const onUp = () => {
-      if (dragRef.current?.kind === "move" && snapGrid && selectedId) {
-        const el = doc.elements.find((x) => x.id === selectedId);
-        if (el) {
-          updateElement(selectedId, { x: snapValue(el.x), y: snapValue(el.y) });
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      const d = dragRef.current;
+      const sid = selectedId;
+      if (d && sid) {
+        let next = docRef.current;
+        if (d.kind === "move" && snapGrid) {
+          const el = next.elements.find((x) => x.id === sid);
+          if (el) {
+            next = {
+              ...next,
+              elements: next.elements.map((e) =>
+                e.id === sid ? { ...e, x: snapValue(el.x), y: snapValue(el.y) } : e
+              ),
+            };
+          }
         }
+        pushHistory(next);
       }
       dragRef.current = null;
+      setIsDragging(false);
     };
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [doc.elements, selectedId, updateElement, zoom, snapGrid]);
+  }, [selectedId, zoom, snapGrid, applyDocLive, pushHistory]);
 
   function onImageFile(file: File) {
     const reader = new FileReader();
@@ -514,19 +571,26 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
             style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}
           >
             <div
-              className="design-page"
-              style={{ width: doc.width, height: doc.height, background: doc.background }}
+              className={`design-page${isDragging ? " is-dragging" : ""}`}
+              style={{
+                width: doc.width,
+                height: doc.height,
+                background: doc.background,
+                touchAction: "none",
+              }}
               onPointerDown={(e) => e.stopPropagation()}
             >
               {sorted.map((el) => (
                 <div
                   key={el.id}
-                  className={`design-el design-el-${el.type}${el.id === selectedId ? " selected" : ""}`}
+                  className={`design-el design-el-${el.type}${el.id === selectedId ? " is-selected" : ""}${el.id === selectedId && isDragging ? " is-dragging-el" : ""}`}
                   style={elementStyle(el)}
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     if (el.locked) return;
                     setSelectedId(el.id);
+                    setIsDragging(true);
+                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                     dragRef.current = {
                       kind: "move",
                       startX: e.clientX,
@@ -589,7 +653,7 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
                 </div>
               ))}
 
-              {selected && !editingTextId ? (
+              {selected && !editingTextId && !isDragging ? (
                 <div
                   className="design-selection"
                   style={{
@@ -607,6 +671,8 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
                       className={`design-handle design-handle-${h}`}
                       onPointerDown={(e) => {
                         e.stopPropagation();
+                        setIsDragging(true);
+                        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                         dragRef.current = {
                           kind: "resize",
                           handle: h,
