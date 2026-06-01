@@ -71,6 +71,7 @@ export type FolderItem = {
   mime: string | null;
   size_bytes: number;
   created_at: string;
+  archived_at?: string | null;
 };
 
 export type Board = {

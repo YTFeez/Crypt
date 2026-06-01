@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DesignDoc, DesignElement, DesignElementType } from "../../lib/design/types";
 import { createElement, duplicateElement, nextZIndex } from "../../lib/design/types";
-import { downloadBlob, exportDesignToPng } from "../../lib/design/export-png";
+import { alignElements, snapValue } from "../../lib/design/align";
+import { ExportMenu } from "./ExportMenu";
 
 type Props = {
   doc: DesignDoc;
   onChange: (doc: DesignDoc) => void;
   onRename: (name: string) => void;
+  onArchive?: () => void;
 };
 
 type DragMode =
@@ -54,22 +56,50 @@ function elementStyle(el: DesignElement): React.CSSProperties {
   };
 }
 
-export function DesignEditor({ doc, onChange, onRename }: Props) {
+export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(0.55);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [snapGrid, setSnapGrid] = useState(true);
   const dragRef = useRef<DragMode | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<DesignDoc[]>([doc]);
+  const histIdxRef = useRef(0);
 
   const selected = doc.elements.find((e) => e.id === selectedId) ?? null;
 
+  const pushHistory = useCallback(
+    (next: DesignDoc) => {
+      const h = historyRef.current.slice(0, histIdxRef.current + 1);
+      h.push(JSON.parse(JSON.stringify(next)) as DesignDoc);
+      if (h.length > 50) h.shift();
+      historyRef.current = h;
+      histIdxRef.current = h.length - 1;
+      onChange(next);
+    },
+    [onChange]
+  );
+
   const updateDoc = useCallback(
     (patch: Partial<DesignDoc> | ((d: DesignDoc) => DesignDoc)) => {
-      onChange(typeof patch === "function" ? patch(doc) : { ...doc, ...patch });
+      const next = typeof patch === "function" ? patch(doc) : { ...doc, ...patch };
+      pushHistory(next);
     },
-    [doc, onChange]
+    [doc, pushHistory]
   );
+
+  function undo() {
+    if (histIdxRef.current <= 0) return;
+    histIdxRef.current -= 1;
+    onChange(historyRef.current[histIdxRef.current]!);
+  }
+
+  function redo() {
+    if (histIdxRef.current >= historyRef.current.length - 1) return;
+    histIdxRef.current += 1;
+    onChange(historyRef.current[histIdxRef.current]!);
+  }
 
   const updateElement = useCallback(
     (id: string, patch: Partial<DesignElement>) => {
@@ -113,6 +143,15 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
         width: 140,
         height: 140,
         fill: "#7c3aed",
+        zIndex: z,
+      });
+    } else if (type === "triangle") {
+      el = createElement("triangle", {
+        x: cx,
+        y: cy,
+        width: 120,
+        height: 100,
+        fill: "#06b6d4",
         zIndex: z,
       });
     } else {
@@ -159,6 +198,14 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
         updateDoc({ elements: [...doc.elements, dup] });
         setSelectedId(dup.id);
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -195,6 +242,12 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
       }
     };
     const onUp = () => {
+      if (dragRef.current?.kind === "move" && snapGrid && selectedId) {
+        const el = doc.elements.find((x) => x.id === selectedId);
+        if (el) {
+          updateElement(selectedId, { x: snapValue(el.x), y: snapValue(el.y) });
+        }
+      }
       dragRef.current = null;
     };
     window.addEventListener("pointermove", onMove);
@@ -203,12 +256,7 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [doc.elements, selectedId, updateElement, zoom]);
-
-  async function onExport() {
-    const blob = await exportDesignToPng(doc);
-    downloadBlob(blob, `${doc.name.replace(/\s+/g, "-")}.png`);
-  }
+  }, [doc.elements, selectedId, updateElement, zoom, snapGrid]);
 
   function onImageFile(file: File) {
     const reader = new FileReader();
@@ -270,6 +318,9 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
           <button type="button" className="btn btn-sm btn-ghost" title="Cercle" onClick={() => addElement("circle")}>
             ○
           </button>
+          <button type="button" className="btn btn-sm btn-ghost" title="Triangle" onClick={() => addElement("triangle")}>
+            △
+          </button>
           <button type="button" className="btn btn-sm btn-ghost" title="Ligne" onClick={() => addElement("line")}>
             —
           </button>
@@ -289,6 +340,44 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
           />
         </div>
         <div className="design-tool-group">
+          <button type="button" className="btn btn-sm btn-ghost" title="Annuler" onClick={undo}>
+            ↶
+          </button>
+          <button type="button" className="btn btn-sm btn-ghost" title="Rétablir" onClick={redo}>
+            ↷
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${snapGrid ? "btn-primary" : "btn-ghost"}`}
+            title="Grille magnétique"
+            onClick={() => setSnapGrid((s) => !s)}
+          >
+            ⊞
+          </button>
+        </div>
+        {selected ? (
+          <div className="design-tool-group">
+            {(["left", "center-h", "right", "top", "center-v", "bottom"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className="btn btn-sm btn-ghost"
+                title={m}
+                onClick={() =>
+                  updateDoc({
+                    elements: alignElements(doc.elements, [selected.id], m, {
+                      width: doc.width,
+                      height: doc.height,
+                    }),
+                  })
+                }
+              >
+                {m === "left" ? "⫷" : m === "right" ? "⫸" : m === "center-h" ? "═" : m === "top" ? "⫠" : m === "bottom" ? "⫡" : "║"}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="design-tool-group">
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setZoom((z) => Math.max(0.2, z - 0.1))}>
             −
           </button>
@@ -297,9 +386,12 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
             +
           </button>
         </div>
-        <button type="button" className="btn btn-sm btn-primary" onClick={() => void onExport()}>
-          Exporter PNG
-        </button>
+        <ExportMenu doc={doc} />
+        {onArchive ? (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={onArchive}>
+            Archiver
+          </button>
+        ) : null}
       </div>
 
       <div className="design-workspace">
@@ -471,6 +563,16 @@ export function DesignEditor({ doc, onChange, onRename }: Props) {
                         borderRadius: "50%",
                         background: el.fill.startsWith("linear") ? el.fill : el.fill,
                         border: el.strokeWidth ? `${el.strokeWidth}px solid ${el.stroke}` : undefined,
+                      }}
+                    />
+                  ) : el.type === "triangle" ? (
+                    <div
+                      style={{
+                        width: 0,
+                        height: 0,
+                        borderLeft: `${el.width / 2}px solid transparent`,
+                        borderRight: `${el.width / 2}px solid transparent`,
+                        borderBottom: `${el.height}px solid ${el.fill}`,
                       }}
                     />
                   ) : el.type === "line" ? (

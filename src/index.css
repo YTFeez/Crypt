@@ -1151,3 +1151,48 @@ button { cursor: pointer; border: none; background: none; }
   .design-workspace { grid-template-columns: 1fr; }
   .design-inspector { display: none; }
 }
+
+.export-menu-wrap { position: relative; }
+.export-menu-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.35rem;
+  z-index: 50;
+  min-width: 240px;
+  padding: 0.75rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.export-menu-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.export-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+}
+
+.archive-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.archive-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.archive-list li:last-child { border-bottom: none; }

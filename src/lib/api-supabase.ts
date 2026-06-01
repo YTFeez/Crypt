@@ -256,21 +256,66 @@ function rowToDesign(row: Record<string, unknown>): DesignDoc {
     is_shared: Boolean(row.is_shared),
     updated_at: row.updated_at as string,
     created_at: row.created_at as string,
+    archived_at: (row.archived_at as string) ?? null,
   };
 }
 
-export async function getDesigns(userId: string): Promise<DesignDoc[]> {
+export async function getDesigns(userId: string, includeArchived = false): Promise<DesignDoc[]> {
   const { data: memberRows } = await supabase.from("design_members").select("design_id").eq("user_id", userId);
   const memberIds = (memberRows ?? []).map((r) => r.design_id);
-  const { data: owned } = await supabase.from("designs").select("*").eq("owner_id", userId);
+  let ownedQ = supabase.from("designs").select("*").eq("owner_id", userId);
+  if (!includeArchived) ownedQ = ownedQ.is("archived_at", null);
+  const { data: owned } = await ownedQ;
   let shared: DesignDoc[] = [];
   if (memberIds.length) {
-    const { data } = await supabase.from("designs").select("*").in("id", memberIds);
+    let sq = supabase.from("designs").select("*").in("id", memberIds);
+    if (!includeArchived) sq = sq.is("archived_at", null);
+    const { data } = await sq;
     shared = (data ?? []).map(rowToDesign);
   }
   const map = new Map<string, DesignDoc>();
   [...(owned ?? []).map(rowToDesign), ...shared].forEach((d) => map.set(d.id, d));
   return [...map.values()].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+}
+
+export async function getArchivedFolderItems(_userId: string): Promise<import("./types").FolderItem[]> {
+  return [];
+}
+
+export async function getArchivedDesigns(userId: string): Promise<DesignDoc[]> {
+  const { data } = await supabase
+    .from("designs")
+    .select("*")
+    .eq("owner_id", userId)
+    .not("archived_at", "is", null)
+    .order("archived_at", { ascending: false });
+  return (data ?? []).map(rowToDesign);
+}
+
+export async function archiveFolderItem(_itemId: string) {
+  return { error: null };
+}
+
+export async function restoreFolderItem(_itemId: string) {
+  return { error: null };
+}
+
+export async function runAutoArchive(_userId: string) {
+  return { error: null };
+}
+
+export async function archiveDesign(designId: string) {
+  return supabase
+    .from("designs")
+    .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", designId);
+}
+
+export async function restoreDesign(designId: string) {
+  return supabase
+    .from("designs")
+    .update({ archived_at: null, updated_at: new Date().toISOString() })
+    .eq("id", designId);
 }
 
 export async function createDesign(doc: DesignDoc) {

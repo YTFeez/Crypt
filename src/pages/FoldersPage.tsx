@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
   getFolders,
@@ -7,6 +8,8 @@ import {
   addFolderItem,
   shareFolder,
   searchProfiles,
+  archiveFolderItem,
+  runAutoArchive,
 } from "../lib/api";
 import type { Folder, FolderItem, Profile } from "../lib/types";
 
@@ -22,6 +25,7 @@ export function FoldersPage() {
 
   const reload = useCallback(async () => {
     if (!user) return;
+    await runAutoArchive(user.id);
     const list = await getFolders(user.id);
     setFolders(list);
     if (!activeId && list[0]) setActiveId(list[0].id);
@@ -66,9 +70,14 @@ export function FoldersPage() {
 
   return (
     <>
-      <header className="page-header">
-        <h1>Dossiers</h1>
-        <p>Dossiers personnels et espaces partagés avec votre équipe.</p>
+      <header className="page-header row" style={{ justifyContent: "space-between" }}>
+        <div>
+          <h1>Dossiers</h1>
+          <p>Dossiers personnels et espaces partagés avec votre équipe.</p>
+        </div>
+        <Link to="/app/archives" className="btn btn-secondary btn-sm">
+          Voir les archives
+        </Link>
       </header>
 
       <div className="split">
@@ -155,10 +164,20 @@ export function FoldersPage() {
                 ) : (
                   <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {items.map((item) => (
-                      <li key={item.id} className="row" style={{ justifyContent: "space-between" }}>
+                      <li key={item.id} className="row" style={{ justifyContent: "space-between", gap: "0.5rem" }}>
                         <span>📄 {item.name}</span>
-                        <span className="muted" style={{ fontSize: "0.8rem" }}>
-                          {(item.size_bytes / 1024).toFixed(1)} Ko
+                        <span className="row" style={{ gap: "0.35rem" }}>
+                          <span className="muted" style={{ fontSize: "0.8rem" }}>
+                            {(item.size_bytes / 1024).toFixed(1)} Ko
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            title="Archiver"
+                            onClick={() => void archiveFolderItem(item.id).then(reloadItems)}
+                          >
+                            Archiver
+                          </button>
                         </span>
                       </li>
                     ))}

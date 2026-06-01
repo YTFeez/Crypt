@@ -13,6 +13,7 @@ import type {
   Call,
 } from "./types";
 import type { DesignDoc } from "./design/types";
+import { archiveTimestamp, shouldAutoArchive } from "./archive";
 
 const MAX_MESSAGES = 150;
 
@@ -237,9 +238,59 @@ export async function createFolder(userId: string, name: string, parentId: strin
   return { data: folder, error: null };
 }
 
-export async function getFolderItems(folderId: string): Promise<FolderItem[]> {
+export async function getFolderItems(folderId: string, includeArchived = false): Promise<FolderItem[]> {
   const db = await loadDb();
-  return db.folder_items.filter((i) => i.folder_id === folderId);
+  return db.folder_items.filter(
+    (i) => i.folder_id === folderId && (includeArchived || !i.archived_at)
+  );
+}
+
+export async function getArchivedFolderItems(userId: string): Promise<FolderItem[]> {
+  const db = await loadDb();
+  const folderIds = new Set(
+    db.folders.filter((f) => f.owner_id === userId).map((f) => f.id)
+  );
+  return db.folder_items
+    .filter((i) => folderIds.has(i.folder_id) && i.archived_at)
+    .sort((a, b) => (b.archived_at ?? "").localeCompare(a.archived_at ?? ""));
+}
+
+export async function archiveFolderItem(itemId: string) {
+  await patchDb((db) => {
+    const item = db.folder_items.find((i) => i.id === itemId);
+    if (item) item.archived_at = archiveTimestamp();
+  });
+  notify("folders");
+  notify("archives");
+  return { error: null };
+}
+
+export async function restoreFolderItem(itemId: string) {
+  await patchDb((db) => {
+    const item = db.folder_items.find((i) => i.id === itemId);
+    if (item) item.archived_at = null;
+  });
+  notify("folders");
+  notify("archives");
+  return { error: null };
+}
+
+export async function runAutoArchive(userId: string) {
+  await patchDb((db) => {
+    const folderIds = new Set(db.folders.filter((f) => f.owner_id === userId).map((f) => f.id));
+    for (const item of db.folder_items) {
+      if (!folderIds.has(item.folder_id) || item.archived_at) continue;
+      if (shouldAutoArchive(item.created_at)) item.archived_at = archiveTimestamp();
+    }
+    for (const d of db.designs) {
+      if (d.owner_id !== userId || d.archived_at) continue;
+      if (shouldAutoArchive(d.created_at)) d.archived_at = archiveTimestamp();
+    }
+  });
+  notify("folders");
+  notify("designs");
+  notify("archives");
+  return { error: null };
 }
 
 export async function addFolderItem(folderId: string, file: File, userId: string) {
@@ -305,12 +356,45 @@ export async function saveBoardStrokes(boardId: string, strokes: Board["strokes"
   return { error: null };
 }
 
-export async function getDesigns(userId: string): Promise<DesignDoc[]> {
+export async function getDesigns(userId: string, includeArchived = false): Promise<DesignDoc[]> {
   const db = await loadDb();
   const shared = new Set(db.design_members.filter((m) => m.user_id === userId).map((m) => m.design_id));
   return db.designs
-    .filter((d) => d.owner_id === userId || shared.has(d.id))
+    .filter((d) => (d.owner_id === userId || shared.has(d.id)) && (includeArchived || !d.archived_at))
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+}
+
+export async function getArchivedDesigns(userId: string): Promise<DesignDoc[]> {
+  const db = await loadDb();
+  return db.designs
+    .filter((d) => d.owner_id === userId && d.archived_at)
+    .sort((a, b) => (b.archived_at ?? "").localeCompare(a.archived_at ?? ""));
+}
+
+export async function archiveDesign(designId: string) {
+  await patchDb((db) => {
+    const d = db.designs.find((x) => x.id === designId);
+    if (d) {
+      d.archived_at = archiveTimestamp();
+      d.updated_at = new Date().toISOString();
+    }
+  });
+  notify("designs");
+  notify("archives");
+  return { error: null };
+}
+
+export async function restoreDesign(designId: string) {
+  await patchDb((db) => {
+    const d = db.designs.find((x) => x.id === designId);
+    if (d) {
+      d.archived_at = null;
+      d.updated_at = new Date().toISOString();
+    }
+  });
+  notify("designs");
+  notify("archives");
+  return { error: null };
 }
 
 export async function createDesign(doc: DesignDoc) {

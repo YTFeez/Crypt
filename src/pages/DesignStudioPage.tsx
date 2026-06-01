@@ -6,13 +6,11 @@ import {
   saveDesign,
   deleteDesign,
   renameDesign,
+  archiveDesign,
+  runAutoArchive,
 } from "../lib/api";
-import {
-  DESIGN_TEMPLATES,
-  createDesignFromTemplate,
-  type DesignDoc,
-  type DesignTemplate,
-} from "../lib/design/types";
+import { PAGE_FORMAT_OPTIONS, type PageFormatOption } from "../lib/design/formats";
+import { createDesignFromFormat, type DesignDoc } from "../lib/design/types";
 import { DesignEditor } from "../components/design/DesignEditor";
 import { subscribeDesign } from "../lib/subscriptions";
 
@@ -26,7 +24,7 @@ export function DesignStudioPage() {
 
   useEffect(() => {
     if (!user) return;
-    void getDesigns(user.id).then(setDesigns);
+    void runAutoArchive(user.id).then(() => getDesigns(user.id).then(setDesigns));
   }, [user]);
 
   useEffect(() => {
@@ -59,9 +57,15 @@ export function DesignStudioPage() {
     scheduleSave(doc);
   }
 
-  async function startFromTemplate(template: DesignTemplate) {
+  async function startFromFormat(format: PageFormatOption) {
     if (!user) return;
-    const doc = createDesignFromTemplate(user.id, template);
+    const doc = createDesignFromFormat(user.id, {
+      width: format.width,
+      height: format.height,
+      background: format.background,
+      name: format.name,
+      qualityId: `${format.formatId}-${format.qualityId}`,
+    });
     await createDesign(doc);
     setDesigns((d) => [doc, ...d]);
     setActive(doc);
@@ -69,7 +73,15 @@ export function DesignStudioPage() {
   }
 
   async function startBlank() {
-    await startFromTemplate(DESIGN_TEMPLATES[0]);
+    const a4draft = PAGE_FORMAT_OPTIONS.find((f) => f.formatId === "a4" && f.qualityId === "draft");
+    if (a4draft) await startFromFormat(a4draft);
+  }
+
+  async function archiveActive() {
+    if (!active || !confirm("Archiver ce document ? Vous pourrez le restaurer depuis Archives.")) return;
+    await archiveDesign(active.id);
+    setDesigns((d) => d.filter((x) => x.id !== active.id));
+    setActive(null);
   }
 
   async function removeDesign(id: string) {
@@ -137,6 +149,7 @@ export function DesignStudioPage() {
                 void renameDesign(active.id, name);
                 scheduleSave(next);
               }}
+              onArchive={() => void archiveActive()}
             />
           ) : (
             <div className="design-empty panel">
@@ -165,8 +178,13 @@ export function DesignStudioPage() {
               </button>
             </div>
             <div className="panel-body design-template-grid">
-              {DESIGN_TEMPLATES.map((t) => (
-                <button key={t.id} type="button" className="design-template-card" onClick={() => void startFromTemplate(t)}>
+              {PAGE_FORMAT_OPTIONS.map((t) => (
+                <button
+                  key={`${t.formatId}-${t.qualityId}`}
+                  type="button"
+                  className="design-template-card"
+                  onClick={() => void startFromFormat(t)}
+                >
                   <div
                     className="design-template-preview"
                     style={{
@@ -176,7 +194,7 @@ export function DesignStudioPage() {
                   />
                   <strong>{t.name}</strong>
                   <span className="muted">
-                    {t.width} × {t.height} px
+                    {t.width} × {t.height} px · {t.dpi} DPI
                   </span>
                 </button>
               ))}

@@ -18,6 +18,7 @@ const nav = [
   { to: "/app/groupes", label: "Groupes", Icon: IconUsers },
   { to: "/app/appels", label: "Appels", Icon: IconPhone },
   { to: "/app/dossiers", label: "Dossiers", Icon: IconFolder },
+  { to: "/app/archives", label: "Archives", Icon: IconFolder },
   { to: "/app/studio", label: "Studio", Icon: IconBoard },
 ] as const;
 

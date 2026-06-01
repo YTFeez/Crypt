@@ -18,7 +18,7 @@ export const DESIGN_TEMPLATES: DesignTemplate[] = [
   { id: "flyer", name: "Flyer A5", width: 559, height: 794, background: "#fff7ed", category: "print" },
 ];
 
-export type DesignElementType = "text" | "rect" | "circle" | "image" | "line";
+export type DesignElementType = "text" | "rect" | "circle" | "triangle" | "image" | "line";
 
 export type DesignElement = {
   id: string;
@@ -55,6 +55,8 @@ export type DesignDoc = {
   is_shared: boolean;
   updated_at: string;
   created_at: string;
+  archived_at?: string | null;
+  page_quality?: string;
 };
 
 export function createElement(
@@ -84,6 +86,23 @@ export function createElement(
     src: partial.src,
   };
   return { ...base, ...partial, id: partial.id ?? base.id };
+}
+
+export function createDesignFromFormat(
+  ownerId: string,
+  format: { width: number; height: number; background: string; name: string; qualityId?: string },
+  name?: string
+): DesignDoc {
+  const templateLike: DesignTemplate = {
+    id: "custom",
+    name: format.name,
+    width: format.width,
+    height: format.height,
+    background: format.background,
+    category: "print",
+  };
+  const doc = createDesignFromTemplate(ownerId, templateLike, name ?? format.name);
+  return { ...doc, page_quality: format.qualityId };
 }
 
 export function createDesignFromTemplate(
