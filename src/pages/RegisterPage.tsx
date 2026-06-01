@@ -34,10 +34,7 @@ export function RegisterPage() {
       <div className="auth-brand-panel">
         <LogoWordmark light />
         <h2>Rejoignez Crypt.</h2>
-        <p>
-          Créez votre compte en quelques secondes. Votre clé de chiffrement est générée
-          localement — nous ne pouvons pas lire vos messages.
-        </p>
+        <p>Créez votre compte et échangez en toute confidentialité avec votre équipe.</p>
       </div>
       <div className="auth-form-panel">
         <div className="auth-card">
@@ -61,7 +58,7 @@ export function RegisterPage() {
               En créant un compte, vous acceptez nos conditions d'utilisation entreprise.
             </p>
             <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-              {loading ? "Sécurisation du coffre (Argon2)…" : "S'inscrire"}
+              {loading ? "Création du compte…" : "S'inscrire"}
             </button>
           </form>
           <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>

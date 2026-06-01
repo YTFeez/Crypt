@@ -1,13 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { updateProfile } from "../lib/api";
-import { isCloudMode } from "../lib/supabase";
-import { getCryptoProfile } from "../lib/crypto";
-
-const cryptoInfo = getCryptoProfile();
 
 export function SettingsPage() {
-  const { user, profile, refreshProfile, mode } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [orgName, setOrgName] = useState(profile?.org_name ?? "");
 
@@ -33,10 +29,6 @@ export function SettingsPage() {
     <>
       <header className="page-header">
         <h1>Paramètres</h1>
-        <p>
-          Mode : <span className="badge">{mode === "cloud" ? "Supabase cloud" : "Local (navigateur)"}</span>
-          {!isCloudMode() ? " — ajoutez VITE_SUPABASE_* sur le VPS pour la synchro cloud." : null}
-        </p>
       </header>
 
       <div className="panel" style={{ maxWidth: 480 }}>
@@ -57,32 +49,10 @@ export function SettingsPage() {
           </div>
           <div className="field">
             <label htmlFor="org">Organisation / entreprise</label>
-            <input id="org" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Veragrow SAS" />
+            <input id="org" value={orgName} onChange={(e) => setOrgName(e.target.value)} placeholder="Mon entreprise" />
           </div>
           <button type="submit" className="btn btn-primary">Enregistrer</button>
         </form>
-      </div>
-
-      <div className="panel" style={{ maxWidth: 480, marginTop: "1.25rem" }}>
-        <div className="panel-header"><strong>Sécurité</strong></div>
-        <div className="panel-body">
-          <ul className="muted" style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.95rem" }}>
-            <li>Chiffrement {cryptoInfo.cipher} côté client (messages, coffre)</li>
-            <li>Clé maître : {cryptoInfo.kdf} (résistant GPU, RFC 9106)</li>
-            <li>Moteur : {cryptoInfo.backend === "webcrypto" ? "Web Crypto (HTTPS)" : "Noble (secours HTTP)"}</li>
-            {!cryptoInfo.secureContext ? (
-              <li style={{ color: "var(--warning, #b45309)" }}>Activez HTTPS pour le contexte sécurisé navigateur</li>
-            ) : null}
-            {mode === "cloud" ? (
-              <>
-                <li>Row Level Security Supabase</li>
-                <li>Fichiers dans Supabase Storage</li>
-              </>
-            ) : (
-              <li>Données stockées localement dans ce navigateur</li>
-            )}
-          </ul>
-        </div>
       </div>
     </>
   );

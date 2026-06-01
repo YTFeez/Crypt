@@ -152,7 +152,7 @@ export function BoardsPage() {
       <header className="page-header row" style={{ justifyContent: "space-between" }}>
         <div>
           <h1>Tableaux collaboratifs</h1>
-          <p>Dessinez en équipe — synchronisation temps réel via Supabase.</p>
+          <p>Tableaux collaboratifs pour vos réunions et ateliers.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => void newBoard()}>
           + Nouveau tableau

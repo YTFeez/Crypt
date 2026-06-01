@@ -44,13 +44,13 @@ export function LoginPage() {
     <div className="auth-split">
       <div className="auth-brand-panel">
         <LogoWordmark light />
-        <h2>Vos données restent chiffrées sur votre appareil.</h2>
-        <p>AES-256 · PBKDF2 · coffre en mémoire uniquement pendant la session.</p>
+        <h2>Messagerie sécurisée pour votre équipe.</h2>
+        <p>Connectez-vous pour accéder à vos conversations et dossiers.</p>
       </div>
       <div className="auth-form-panel">
         <div className="auth-card">
           <h1>Connexion</h1>
-          <p className="subtitle">Accédez à Crypt immédiatement.</p>
+          <p className="subtitle">Entrez vos identifiants.</p>
           {error ? <div className="alert alert-error">{error}</div> : null}
           <form onSubmit={onSubmit}>
             <div className="field">
@@ -76,7 +76,7 @@ export function LoginPage() {
               />
             </div>
             <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: "0.5rem" }} disabled={loading}>
-              {loading ? "Déverrouillage du coffre…" : "Se connecter"}
+              {loading ? "Connexion…" : "Se connecter"}
             </button>
           </form>
           <button
@@ -86,12 +86,9 @@ export function LoginPage() {
             disabled={loading}
             onClick={() => void onGuest()}
           >
-            Entrer sans compte (démo)
+            Explorer sans compte
           </button>
-          <p className="muted" style={{ marginTop: "1rem", fontSize: "0.8rem", textAlign: "center" }}>
-            Démo : <strong>demo@crypt.app</strong> / <strong>demo1234</strong>
-          </p>
-          <p className="muted" style={{ marginTop: "0.5rem", fontSize: "0.875rem", textAlign: "center" }}>
+          <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
             Pas de compte ? <Link to="/inscription">Créer un compte</Link>
           </p>
         </div>

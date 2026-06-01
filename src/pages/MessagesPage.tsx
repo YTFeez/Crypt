@@ -107,7 +107,7 @@ export function MessagesPage() {
                   <span className="avatar sm">{labels[c.id]?.[0]?.toUpperCase() ?? "?"}</span>
                   <span className="list-item-text">
                     <strong>{labels[c.id] ?? "…"}</strong>
-                    <span>{c.type === "group" ? "Groupe · actif" : "Messenger"}</span>
+                    <span>{c.type === "group" ? "Groupe" : "Direct"}</span>
                   </span>
                 </button>
               ))

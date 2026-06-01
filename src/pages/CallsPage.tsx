@@ -51,7 +51,7 @@ export function CallsPage() {
     <>
       <header className="page-header">
         <h1>Appels</h1>
-        <p>Audio et vidéo — salons WebRTC prêts pour intégration Daily/Livekit.</p>
+        <p>Lancez des appels audio ou vidéo avec vos contacts.</p>
       </header>
 
       <div className="split" style={{ minHeight: "auto" }}>
@@ -103,7 +103,6 @@ export function CallsPage() {
             )}
             {localStream ? (
               <div style={{ marginTop: "1rem" }}>
-                <p className="badge success">Prévisualisation locale active</p>
                 <video
                   autoPlay
                   muted

@@ -62,7 +62,7 @@ export function LandingPage() {
           </Link>
           {!user ? (
             <button type="button" className="btn btn-secondary" disabled={guestLoading} onClick={() => void tryDemo()}>
-              {guestLoading ? "Chargement…" : "Essayer la démo"}
+              {guestLoading ? "Chargement…" : "Explorer"}
             </button>
           ) : null}
           <Link to="/connexion" className="btn btn-secondary">Se connecter</Link>
@@ -112,13 +112,13 @@ export function LandingPage() {
           <h3>Messagerie instantanée</h3>
           <p>
             Conversations directes et groupes, pièces jointes, messages vocaux et notifications
-            en temps réel — comme Messenger, pour le travail.
+            en temps réel.
           </p>
         </article>
         <article className="bento-card span-4">
           <div className="bento-icon"><IconLock size={24} /></div>
-          <h3 id="securite">Sécurité Apple-grade</h3>
-          <p>Chiffrement AES-GCM côté client. Vos clés ne quittent pas l'appareil.</p>
+          <h3 id="securite">Sécurité renforcée</h3>
+          <p>Messages et fichiers protégés. Seuls les membres autorisés y accèdent.</p>
         </article>
         <article className="bento-card span-4">
           <div className="bento-icon"><IconUsers size={24} /></div>
@@ -132,7 +132,7 @@ export function LandingPage() {
         </article>
         <article className="bento-card span-4">
           <div className="bento-icon"><IconFolder size={24} /></div>
-          <h3>Dossiers cloud</h3>
+          <h3>Dossiers partagés</h3>
           <p>Espaces personnels et dossiers communs avec droits granulaires.</p>
         </article>
         <article className="bento-card span-6">
@@ -143,20 +143,18 @@ export function LandingPage() {
         <article className="bento-card span-6">
           <div className="bento-icon"><IconShield size={24} /></div>
           <h3>Prêt entreprise</h3>
-          <p>Supabase, hébergement Hostinger, conformité et scalabilité.</p>
+          <p>Gestion des accès, espaces d'équipe et conformité pour votre organisation.</p>
         </article>
       </section>
 
       <section className="cta-band">
         <h2>Prêt à transformer votre communication interne ?</h2>
-        <p className="muted" style={{ marginBottom: "1.5rem" }}>Déploiement en quelques minutes sur votre domaine.</p>
         <Link to="/inscription" className="btn btn-primary">Démarrer maintenant</Link>
       </section>
 
       <footer className="marketing-footer">
         <LogoWordmark />
-        <span>© {new Date().getFullYear()} SecureHub · Veragrow</span>
-        <span>Propulsé par Supabase</span>
+        <span>© {new Date().getFullYear()} Crypt</span>
       </footer>
     </div>
   );

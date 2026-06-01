@@ -68,7 +68,7 @@ export function FoldersPage() {
     <>
       <header className="page-header">
         <h1>Dossiers</h1>
-        <p>Stockage sécurisé — dossiers personnels et espaces partagés en équipe.</p>
+        <p>Dossiers personnels et espaces partagés avec votre équipe.</p>
       </header>
 
       <div className="split">

@@ -32,29 +32,6 @@ export function usesFallbackCrypto(): boolean {
   return !useSubtle;
 }
 
-export function isHttpsRecommended(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    !window.isSecureContext &&
-    location.hostname !== "localhost" &&
-    location.hostname !== "127.0.0.1"
-  );
-}
-
-export function getCryptoProfile(): {
-  kdf: string;
-  cipher: string;
-  secureContext: boolean;
-  backend: "webcrypto" | "noble";
-} {
-  return {
-    kdf: "Argon2id",
-    cipher: "AES-256-GCM",
-    secureContext: typeof window !== "undefined" && window.isSecureContext,
-    backend: useSubtle ? "webcrypto" : "noble",
-  };
-}
-
 function bufToB64(buf: ArrayBuffer | Uint8Array): string {
   const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   let s = "";
