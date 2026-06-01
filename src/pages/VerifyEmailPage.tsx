@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { AuthLayout } from "../components/AuthLayout";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 
 type LocationState = { email?: string; devCode?: string };
 
@@ -119,8 +120,11 @@ export function VerifyEmailPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-          {loading ? "Activation…" : "Activer mon compte"}
+        <button type="submit" className={`btn btn-primary btn-block${loading ? " is-loading" : ""}`} disabled={loading}>
+          <span className="btn-loading-inner">
+            {loading ? <LoadingSpinner size="sm" /> : null}
+            {loading ? "Activation…" : "Activer mon compte"}
+          </span>
         </button>
       </form>
       <button

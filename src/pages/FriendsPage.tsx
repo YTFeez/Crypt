@@ -9,6 +9,7 @@ import {
 } from "../lib/api";
 import type { Friendship, Profile } from "../lib/types";
 import { useNavigate } from "react-router-dom";
+import { PageLoader } from "../components/PageLoader";
 
 export function FriendsPage() {
   const { user } = useAuth();
@@ -17,10 +18,16 @@ export function FriendsPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Profile[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     if (!user) return;
-    setFriendships(await getFriendships(user.id));
+    setLoading(true);
+    try {
+      setFriendships(await getFriendships(user.id));
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -65,6 +72,10 @@ export function FriendsPage() {
 
   const accepted = friendships.filter((f) => f.status === "accepted");
   const pending = friendships.filter((f) => f.status === "pending");
+
+  if (loading && friendships.length === 0) {
+    return <PageLoader label="Chargement des contacts…" />;
+  }
 
   return (
     <>

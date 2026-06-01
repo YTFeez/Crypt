@@ -14,18 +14,25 @@ import { createDesignFromFormat, type DesignDoc } from "../lib/design/types";
 import { DesignEditor } from "../components/design/DesignEditor";
 import { NewDocumentModal } from "../components/design/NewDocumentModal";
 import { subscribeDesign } from "../lib/subscriptions";
+import { PageLoader } from "../components/PageLoader";
+import { SkeletonList } from "../components/Skeleton";
 
 export function DesignStudioPage() {
   const { user } = useAuth();
   const [designs, setDesigns] = useState<DesignDoc[]>([]);
   const [active, setActive] = useState<DesignDoc | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [loading, setLoading] = useState(true);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const docRef = useRef<DesignDoc | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    void runAutoArchive(user.id).then(() => getDesigns(user.id).then(setDesigns));
+    setLoading(true);
+    void runAutoArchive(user.id)
+      .then(() => getDesigns(user.id))
+      .then(setDesigns)
+      .finally(() => setLoading(false));
   }, [user]);
 
   useEffect(() => {
@@ -106,6 +113,14 @@ export function DesignStudioPage() {
     if (active?.id === id) setActive(null);
   }
 
+  if (loading && designs.length === 0) {
+    return (
+      <div className="design-studio-page">
+        <PageLoader label="Chargement du studio…" />
+      </div>
+    );
+  }
+
   return (
     <div className="design-studio-page">
       <header className="page-header row" style={{ justifyContent: "space-between", flexShrink: 0 }}>
@@ -122,7 +137,9 @@ export function DesignStudioPage() {
         <aside className="design-doc-list panel">
           <div className="panel-header"><strong>Mes créations</strong></div>
           <div className="panel-body" style={{ padding: "0.35rem" }}>
-            {designs.length === 0 ? (
+            {loading ? (
+              <SkeletonList rows={4} />
+            ) : designs.length === 0 ? (
               <p className="muted" style={{ padding: "0.75rem", fontSize: "0.875rem", margin: 0 }}>
                 Aucun document. Créez-en un avec un modèle.
               </p>

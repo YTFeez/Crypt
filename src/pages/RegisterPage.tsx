@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { AuthLayout } from "../components/AuthLayout";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 
 export function RegisterPage() {
   const { signUp, user } = useAuth();
@@ -90,8 +91,11 @@ export function RegisterPage() {
           vérification vous sera envoyé — l&apos;application reste inaccessible tant que l&apos;e-mail n&apos;est pas
           confirmé.
         </p>
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-          {loading ? "Création…" : "Continuer"}
+        <button type="submit" className={`btn btn-primary btn-block${loading ? " is-loading" : ""}`} disabled={loading}>
+          <span className="btn-loading-inner">
+            {loading ? <LoadingSpinner size="sm" /> : null}
+            {loading ? "Création…" : "Continuer"}
+          </span>
         </button>
       </form>
     </AuthLayout>

@@ -11,6 +11,9 @@ import {
 import { subscribeMessages } from "../lib/subscriptions";
 import type { Conversation, Message } from "../lib/types";
 import { IconLock } from "../components/Icons";
+import { PageLoader } from "../components/PageLoader";
+import { SkeletonList, SkeletonChat } from "../components/Skeleton";
+import { LoaderBrand } from "../components/LoaderBrand";
 
 export function MessagesPage() {
   const { user } = useAuth();
@@ -19,31 +22,43 @@ export function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const [listLoading, setListLoading] = useState(true);
+  const [msgsLoading, setMsgsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const voiceRef = useRef<HTMLInputElement>(null);
 
   const loadConversations = useCallback(async () => {
     if (!user) return;
-    const list = await getConversations(user.id);
-    setConversations(list);
-    const lbl: Record<string, string> = {};
-    for (const c of list) {
-      if (c.type === "group") {
-        lbl[c.id] = c.name ?? "Groupe";
-      } else {
-        const members = await getConversationMembers(c.id);
-        const other = members.find((m) => m.user_id !== user.id);
-        lbl[c.id] = other?.profile?.display_name ?? other?.profile?.handle ?? "Conversation";
+    setListLoading(true);
+    try {
+      const list = await getConversations(user.id);
+      setConversations(list);
+      const lbl: Record<string, string> = {};
+      for (const c of list) {
+        if (c.type === "group") {
+          lbl[c.id] = c.name ?? "Groupe";
+        } else {
+          const members = await getConversationMembers(c.id);
+          const other = members.find((m) => m.user_id !== user.id);
+          lbl[c.id] = other?.profile?.display_name ?? other?.profile?.handle ?? "Conversation";
+        }
       }
+      setLabels(lbl);
+      if (!activeId && list[0]) setActiveId(list[0].id);
+    } finally {
+      setListLoading(false);
     }
-    setLabels(lbl);
-    if (!activeId && list[0]) setActiveId(list[0].id);
   }, [user, activeId]);
 
   const loadMessages = useCallback(async () => {
     if (!activeId) return;
-    setMessages(await getMessages(activeId));
+    setMsgsLoading(true);
+    try {
+      setMessages(await getMessages(activeId));
+    } finally {
+      setMsgsLoading(false);
+    }
   }, [activeId]);
 
   useEffect(() => {
@@ -83,13 +98,23 @@ export function MessagesPage() {
 
   const active = conversations.find((c) => c.id === activeId);
 
+  if (listLoading && conversations.length === 0) {
+    return (
+      <div className="page-inner" style={{ paddingTop: 0, maxWidth: "100%" }}>
+        <PageLoader label="Chargement des conversations…" />
+      </div>
+    );
+  }
+
   return (
     <div className="page-inner" style={{ paddingTop: 0, maxWidth: "100%" }}>
       <div className="split-messenger">
         <aside className="conv-sidebar">
           <div className="conv-sidebar-header">Discussions</div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0.35rem" }}>
-            {conversations.length === 0 ? (
+            {listLoading ? (
+              <SkeletonList rows={5} />
+            ) : conversations.length === 0 ? (
               <div className="empty-state" style={{ padding: "2rem 1rem" }}>
                 <p>Aucune conversation.</p>
                 <Link to="/app/amis" className="btn btn-primary btn-sm" style={{ marginTop: "0.75rem" }}>
@@ -125,8 +150,17 @@ export function MessagesPage() {
                   <IconLock size={12} /> Chiffré
                 </span>
               </div>
-              <div className="messages-scroll">
-                {messages.map((m) => {
+              <div className="messages-scroll panel-loading">
+                {msgsLoading ? (
+                  <>
+                    <SkeletonChat />
+                    <div className="content-loading-overlay">
+                      <LoaderBrand label="Déchiffrement des messages…" compact />
+                    </div>
+                  </>
+                ) : null}
+                {!msgsLoading &&
+                  messages.map((m) => {
                   const mine = m.sender_id === user?.id;
                   return (
                     <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
@@ -137,7 +171,7 @@ export function MessagesPage() {
                       </div>
                     </div>
                   );
-                })}
+                  })}
                 <div ref={bottomRef} />
               </div>
               <form className="compose-bar" onSubmit={onSend}>

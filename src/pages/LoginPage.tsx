@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { AuthLayout } from "../components/AuthLayout";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 
 export function LoginPage() {
   const { signIn, signInAsGuest, user } = useAuth();
@@ -95,8 +96,11 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-          {loading ? "Connexion…" : "Se connecter"}
+        <button type="submit" className={`btn btn-primary btn-block${loading ? " is-loading" : ""}`} disabled={loading}>
+          <span className="btn-loading-inner">
+            {loading ? <LoadingSpinner size="sm" /> : null}
+            {loading ? "Connexion…" : "Se connecter"}
+          </span>
         </button>
       </form>
       <div className="auth-divider">
@@ -108,7 +112,10 @@ export function LoginPage() {
         disabled={loading}
         onClick={() => void onGuest()}
       >
-        Parcourir la démo (compte vérifié)
+        <span className="btn-loading-inner">
+          {loading ? <LoadingSpinner size="sm" /> : null}
+          Parcourir la démo (compte vérifié)
+        </span>
       </button>
       <p className="auth-hint">La démo utilise un compte entreprise préactivé — sans inscription.</p>
     </AuthLayout>

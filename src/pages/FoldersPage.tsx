@@ -12,6 +12,8 @@ import {
   runAutoArchive,
 } from "../lib/api";
 import type { Folder, FolderItem, Profile } from "../lib/types";
+import { PageLoader } from "../components/PageLoader";
+import { SkeletonList } from "../components/Skeleton";
 
 export function FoldersPage() {
   const { user } = useAuth();
@@ -22,13 +24,19 @@ export function FoldersPage() {
   const [isShared, setIsShared] = useState(false);
   const [shareHandle, setShareHandle] = useState("");
   const [shareResults, setShareResults] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     if (!user) return;
-    await runAutoArchive(user.id);
-    const list = await getFolders(user.id);
-    setFolders(list);
-    if (!activeId && list[0]) setActiveId(list[0].id);
+    setLoading(true);
+    try {
+      await runAutoArchive(user.id);
+      const list = await getFolders(user.id);
+      setFolders(list);
+      if (!activeId && list[0]) setActiveId(list[0].id);
+    } finally {
+      setLoading(false);
+    }
   }, [user, activeId]);
 
   const reloadItems = useCallback(async () => {
@@ -68,6 +76,10 @@ export function FoldersPage() {
 
   const active = folders.find((f) => f.id === activeId);
 
+  if (loading && folders.length === 0) {
+    return <PageLoader label="Chargement des dossiers…" />;
+  }
+
   return (
     <>
       <header className="page-header row" style={{ justifyContent: "space-between" }}>
@@ -85,7 +97,10 @@ export function FoldersPage() {
           <div className="panel">
             <div className="panel-header"><strong>Mes dossiers</strong></div>
             <div className="panel-body" style={{ padding: "0.5rem" }}>
-              {folders.map((f) => (
+              {loading ? (
+                <SkeletonList rows={4} />
+              ) : (
+              folders.map((f) => (
                 <button
                   key={f.id}
                   type="button"
@@ -98,7 +113,8 @@ export function FoldersPage() {
                     {f.is_shared ? <span className="badge" style={{ marginLeft: 6 }}>Partagé</span> : null}
                   </span>
                 </button>
-              ))}
+              ))
+              )}
             </div>
           </div>
 
