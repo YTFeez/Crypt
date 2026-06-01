@@ -10,12 +10,26 @@ function mailConfig() {
   if (!host || !pass) return null;
 
   const port = Number(process.env.TALKEO_SMTP_PORT ?? 465);
-  const secure = process.env.TALKEO_SMTP_SECURE !== "false" && port === 465;
+  const mode = String(process.env.TALKEO_SMTP_SECURE ?? "").toLowerCase();
+
+  /** IONOS : 465 SSL/TLS ou 587 STARTTLS (smtp.ionos.fr) */
+  let secure = port === 465;
+  let requireTLS = false;
+  if (mode === "starttls" || mode === "tls" || port === 587) {
+    secure = false;
+    requireTLS = true;
+  } else if (mode === "true" || mode === "ssl") {
+    secure = true;
+    requireTLS = false;
+  } else if (mode === "false") {
+    secure = false;
+  }
 
   return {
     host,
     port,
     secure,
+    requireTLS,
     auth: { user, pass },
   };
 }

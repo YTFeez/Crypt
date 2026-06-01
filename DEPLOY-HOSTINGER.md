@@ -92,23 +92,32 @@ Conséquences :
 - Effacer les données du site dans le navigateur = perte du compte local.
 - La vérification e-mail bloque l’accès à l’app tant que le code n’est pas validé.
 
-### E-mails de vérification (`support@talkeo.fr`)
+### E-mails de vérification (`support@talkeo.fr` — IONOS)
 
-L’API Talkeo envoie les codes depuis **`support@talkeo.fr`** (inscription, renvoi, changement d’e-mail).
+L’API Talkeo envoie les codes depuis **`support@talkeo.fr`** (boîte **IONOS**, pas Hostinger).
 
-Sur le VPS, configurez la boîte mail Hostinger puis ajoutez dans `/opt/crypt/.env` :
+1. Créez la boîte `support@talkeo.fr` dans l’espace client IONOS (domaine `talkeo.fr`).
+2. Sur le VPS, ajoutez dans `/opt/crypt/.env` :
 
 ```env
 TALKEO_MAIL_FROM=support@talkeo.fr
 TALKEO_MAIL_FROM_NAME=Talkeo
-TALKEO_SMTP_HOST=smtp.hostinger.com
+TALKEO_SMTP_HOST=smtp.ionos.fr
 TALKEO_SMTP_PORT=465
 TALKEO_SMTP_SECURE=true
 TALKEO_SMTP_USER=support@talkeo.fr
-TALKEO_SMTP_PASS=votre_mot_de_passe
+TALKEO_SMTP_PASS=mot_de_passe_de_la_boite_ionos
 ```
 
-Redéployez et redémarrez l’API :
+**Paramètres IONOS officiels** : serveur sortant `smtp.ionos.fr`, port **465** (SSL/TLS).  
+Si l’envoi échoue depuis le VPS, essayez le port **587** :
+
+```env
+TALKEO_SMTP_PORT=587
+TALKEO_SMTP_SECURE=starttls
+```
+
+3. Redéployez et redémarrez l’API :
 
 ```bash
 bash /opt/crypt/src/infra/deploy.sh
