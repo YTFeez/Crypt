@@ -33,6 +33,9 @@ import {
   generateVerificationCode,
   sendVerificationEmail,
 } from "./email-verify";
+import { isServerMode } from "./server-mode";
+import { getApiToken } from "./server-api";
+import * as srv from "./server-store";
 
 const SESSION_KEY = "crypt-session-v1";
 const USERS_KEY = "crypt-users-v2";
@@ -125,6 +128,10 @@ function saveLocalUsers(users: LocalUser[]) {
 }
 
 export async function ensureLocalSeed(): Promise<void> {
+  if (isServerMode()) {
+    await srv.ensureServerReady();
+    return;
+  }
   await migrateLegacyStorage();
   if (localStorage.getItem(SEED_FLAG)) return;
 
@@ -209,6 +216,9 @@ function isEmailVerified(user: LocalUser): boolean {
 }
 
 export function isLocalUserEmailVerifiedById(userId: string): boolean {
+  if (isServerMode()) {
+    return getLocalSessionUserId() === userId && Boolean(getApiToken());
+  }
   const user = getLocalUsers().find((u) => u.id === userId);
   if (!user) return false;
   return isEmailVerified(user);
@@ -226,6 +236,7 @@ export async function localRegister(
   password: string,
   displayName: string
 ): Promise<{ error: string | null; userId?: string; needsVerification?: boolean; devCode?: string }> {
+  if (isServerMode()) return srv.serverRegister(email, password, displayName);
   try {
     await ensureLocalSeed();
     const users = getLocalUsers();
@@ -306,6 +317,7 @@ export async function localLogin(
   email: string,
   password: string
 ): Promise<{ error: string | null; userId?: string }> {
+  if (isServerMode()) return srv.serverLogin(email, password);
   try {
     await ensureLocalSeed();
     const norm = email.trim().toLowerCase();
@@ -356,6 +368,10 @@ export async function localLogin(
 }
 
 export function localLogout() {
+  if (isServerMode()) {
+    srv.clearServerSession();
+    return;
+  }
   const id = getLocalSessionUserId();
   localStorage.removeItem(SESSION_KEY);
   lockVault();
@@ -383,6 +399,7 @@ export async function completeLocalEmailVerification(
   userId: string,
   password: string
 ): Promise<{ error: string | null }> {
+  if (isServerMode()) return srv.serverCompleteVerification(userId, password);
   const users = getLocalUsers();
   const idx = users.findIndex((u) => u.id === userId);
   if (idx < 0) return { error: "Compte introuvable." };
@@ -422,6 +439,11 @@ export function markLocalEmailVerifiedByEmail(email: string): boolean {
 
 /** Déconnecte et invalide la session si l'e-mail n'est pas vérifié */
 export function enforceVerifiedSession(): { ok: true } | { ok: false; email: string } {
+  if (isServerMode()) {
+    const r = srv.enforceServerVerifiedSession();
+    if (!r.ok) return { ok: false, email: "" };
+    return { ok: true };
+  }
   const id = getLocalSessionUserId();
   if (!id) return { ok: true };
   if (isLocalUserEmailVerifiedById(id)) return { ok: true };
@@ -434,6 +456,7 @@ export function enforceVerifiedSession(): { ok: true } | { ok: false; email: str
 export async function resendLocalVerificationCode(
   email: string
 ): Promise<{ error: string | null; devCode?: string }> {
+  if (isServerMode()) return srv.serverResendCode(email);
   const norm = email.trim().toLowerCase();
   const user = getLocalUsers().find((u) => u.email.toLowerCase() === norm);
   if (!user) return { error: "Aucun compte pour cet e-mail." };
@@ -446,6 +469,7 @@ export async function resendLocalVerificationCode(
 }
 
 export async function enterGuestSession(): Promise<{ error: string | null; userId?: string }> {
+  if (isServerMode()) return srv.serverLogin("demo@talkeo.app", "demo1234");
   let res = await localLogin("demo@talkeo.app", "demo1234");
   if (res.error) res = await localLogin("demo@crypt.app", "demo1234");
   return res;

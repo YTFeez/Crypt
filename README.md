@@ -28,24 +28,15 @@ bash /opt/crypt/src/infra/deploy.sh
 
 ## Où sont stockés les comptes ?
 
-| Déploiement | Où ? | Conséquence |
-|-------------|------|-------------|
-| **Hostinger (sans Supabase)** | Dans le **navigateur** de chaque utilisateur | Comptes, messages et fichiers restent sur l’appareil utilisé (pas de serveur central Talkeo). |
-| **Avec Supabase (optionnel)** | Base PostgreSQL Supabase + Auth | Sync multi-appareils, messagerie cloud. |
+| Mode | Stockage |
+|------|----------|
+| **Hostinger VPS (recommandé)** | Base SQLite `/opt/crypt/data/talkeo.db` sur le serveur — voir `VITE_API_URL` |
+| **Sans API (legacy)** | Navigateur uniquement (`localStorage` + IndexedDB) |
+| **Supabase (optionnel)** | PostgreSQL cloud + sync |
 
-Détail **mode Hostinger** (par utilisateur, dans le navigateur) :
+**Sur le VPS** : le mot de passe est stocké en **hash Argon2id** (jamais en clair). Messages et fichiers sont dans un **coffre AES-256-GCM** — illisible sans le mot de passe de l’utilisateur.
 
-| Donnée | Emplacement technique |
-|--------|------------------------|
-| Identifiants (e-mail, mot de passe hashé Argon2) | `localStorage` → clé `crypt-users-v2` |
-| Session connectée | `localStorage` → `crypt-session-v1` |
-| Messages, dossiers, studio… (chiffrés AES-GCM) | **IndexedDB** → base `crypt-store` |
-| Index profils (recherche contacts) | `localStorage` → `crypt-profile-index-v1` |
-| Code de vérification e-mail en attente | `localStorage` → `crypt-email-pending-v1` |
-
-> Le VPS Hostinger héberge uniquement le **site web** (HTML/JS/CSS). Il ne reçoit pas les mots de passe ni les messages.
-
-**E-mails de vérification sur Hostinger :** sans Supabase, configurez un webhook d’envoi (`VITE_VERIFICATION_EMAIL_URL` dans `/opt/crypt/.env`) ou utilisez le code affiché en mode développement. Voir DEPLOY-HOSTINGER.md.
+**Outil admin pour déchiffrer** (avec le mot de passe du compte) : [tools/vault-decrypt/README.md](./tools/vault-decrypt/README.md)
 
 ## Installation locale (développement)
 

@@ -37,7 +37,7 @@ export async function updateProfile(userId: string, patch: Partial<Profile>) {
 }
 
 export async function searchProfiles(query: string, excludeId: string): Promise<Profile[]> {
-  return findPublicProfiles(query, excludeId);
+  return await findPublicProfiles(query, excludeId);
 }
 
 export async function getFriendships(userId: string): Promise<Friendship[]> {

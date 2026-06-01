@@ -36,9 +36,46 @@ sudo DOMAIN=crypt.votredomaine.fr EMAIL=admin@votredomaine.fr bash infra/setup-v
 
 ---
 
-## Où sont stockés les comptes (Hostinger, sans Supabase) ?
+## Où sont stockés les comptes (mode VPS — recommandé) ?
 
-Le VPS ne stocke **aucun compte utilisateur**. Il sert uniquement le site (fichiers dans `/opt/crypt/www`).
+Avec `VITE_API_URL` configuré, tout est sur le **VPS** :
+
+| Donnée | Emplacement |
+|--------|-------------|
+| Comptes (e-mail, hash Argon2id du mot de passe) | SQLite `/opt/crypt/data/talkeo.db` → table `users` |
+| Coffre chiffré (messages, dossiers, studio…) | Même base → table `vaults` (AES-256-GCM, **illisible sans mot de passe**) |
+| Meta coffre (sel Argon2) | Table `users` (`vault_salt`, `vault_verifier`) |
+| Codes de vérification e-mail | Table `email_verifications` |
+
+Le mot de passe **n’est jamais enregistré en clair** sur le serveur.
+
+### Déploiement API + base
+
+Dans `/opt/crypt/.env` (voir `.env.production.example`) :
+
+```env
+VITE_API_URL=https://votredomaine.fr
+TALKEO_JWT_SECRET=...   # openssl rand -hex 32
+TALKEO_ADMIN_KEY=...    # openssl rand -hex 24
+TALKEO_DATABASE_PATH=/opt/crypt/data/talkeo.db
+```
+
+Puis : `bash /opt/crypt/src/infra/deploy.sh` (installe l’API systemd `talkeo-api` + proxy nginx `/api/`).
+
+### Outil de déchiffrement (administration)
+
+Sur le VPS ou en local : `tools/vault-decrypt/` — voir [tools/vault-decrypt/README.md](./tools/vault-decrypt/README.md).
+
+```bash
+node tools/vault-decrypt/decrypt.mjs --list --db /opt/crypt/data/talkeo.db
+node tools/vault-decrypt/decrypt.mjs --db /opt/crypt/data/talkeo.db --email user@corp.fr --password "..." --out export.json
+```
+
+---
+
+## Ancien mode navigateur uniquement (sans API)
+
+Sans `VITE_API_URL`, le VPS ne stocke **aucun compte**. Il sert uniquement le site (fichiers dans `/opt/crypt/web-dist`).
 
 Chaque visiteur garde ses données **dans son navigateur** :
 

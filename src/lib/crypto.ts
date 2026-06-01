@@ -224,6 +224,18 @@ export function clearVaultMeta() {
   localStorage.removeItem(VAULT_META_LEGACY);
 }
 
+export type VaultMetaExport = VaultMeta;
+
+export function exportVaultMeta(): VaultMeta | null {
+  const raw = readVaultMetaRaw();
+  if (!raw) return null;
+  return JSON.parse(raw) as VaultMeta;
+}
+
+export function importVaultMeta(meta: VaultMeta) {
+  writeVaultMeta(meta);
+}
+
 /** Hachage SHA-256 (anciens comptes) — sans Web Crypto */
 export function sha256B64(input: string): string {
   const h = sha256(new TextEncoder().encode(input));

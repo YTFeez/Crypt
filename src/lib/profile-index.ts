@@ -1,4 +1,6 @@
 import type { Profile } from "./types";
+import { isServerMode } from "./server-mode";
+import { apiFetch } from "./server-api";
 
 const KEY = "crypt-profile-index-v1";
 
@@ -16,9 +18,13 @@ export function upsertPublicProfile(profile: Profile) {
   localStorage.setItem(KEY, JSON.stringify(list));
 }
 
-export function findPublicProfiles(query: string, excludeId: string): Profile[] {
+export async function findPublicProfiles(query: string, excludeId: string): Promise<Profile[]> {
   const q = query.trim().toLowerCase();
   if (!q) return [];
+  if (isServerMode()) {
+    const res = await apiFetch<Profile[]>(`/api/profiles/search?q=${encodeURIComponent(q)}`);
+    return res.data ?? [];
+  }
   return listPublicProfiles()
     .filter(
       (p) =>

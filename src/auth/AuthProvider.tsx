@@ -25,6 +25,9 @@ import {
   isLocalUserEmailVerifiedById,
 } from "../lib/local-db";
 import { verifyCodeAgainstPending } from "../lib/email-verify";
+import { isServerMode } from "../lib/server-mode";
+import * as srv from "../lib/server-store";
+import { getApiToken } from "../lib/server-api";
 import type { Profile } from "../lib/types";
 
 export type SignUpResult =
@@ -38,7 +41,7 @@ type AuthState = {
   profile: Profile | null;
   loading: boolean;
   emailVerified: boolean;
-  mode: "cloud" | "local";
+  mode: "cloud" | "local" | "server";
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, displayName: string) => Promise<SignUpResult>;
   verifyEmailWithCode: (email: string, code: string, password: string) => Promise<string | null>;
@@ -113,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const id = getLocalSessionUserId();
       if (id && !cancelled) {
         const restored = await restoreSessionKey();
-        if (!restored) {
+        if (!restored || (isServerMode() && !getApiToken())) {
           localLogout();
         } else if (!isLocalUserEmailVerifiedById(id)) {
           localLogout();
@@ -167,6 +170,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const trimmed = email.trim();
       if (!trimmed || !password) return "Renseignez e-mail et mot de passe.";
+
+      if (isServerMode()) {
+        const localRes = await localLogin(trimmed, password);
+        if (!localRes.error && localRes.userId) {
+          const applied = await applyLocalSession(localRes.userId, trimmed);
+          setLocalUser(applied.user);
+          setProfile(applied.profile);
+          setSession(null);
+          return null;
+        }
+        return localRes.error ?? "Connexion impossible.";
+      }
 
       const localRes = await localLogin(trimmed, password);
       if (!localRes.error && localRes.userId) {
@@ -247,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setSession(null);
 
-      if (cloud) {
+      if (cloud && !isServerMode()) {
         try {
           const { data, error } = await supabase.auth.signUp({
             email: trimmed,
@@ -291,6 +306,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyEmailWithCode = useCallback(
     async (email: string, code: string, password: string) => {
       const trimmed = email.trim();
+
+      if (isServerMode()) {
+        const ver = await srv.serverVerifyEmailCode(trimmed, code);
+        if (ver.error) return ver.error;
+        const login = await srv.serverLogin(trimmed, password);
+        if (login.error) return login.error;
+        const applied = await applyLocalSession(login.userId!, trimmed);
+        setLocalUser(applied.user);
+        setProfile(applied.profile);
+        setSession(null);
+        return null;
+      }
+
       const check = verifyCodeAgainstPending(trimmed, code);
       if (!check.ok) return check.error;
 
@@ -320,6 +348,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resendVerificationEmail = useCallback(
     async (email: string) => {
       const trimmed = email.trim();
+      if (isServerMode()) {
+        const r = await srv.serverResendCode(trimmed);
+        return { error: r.error, devCode: r.devCode };
+      }
       const local = await resendLocalVerificationCode(trimmed);
       if (local.error) return { error: local.error };
 

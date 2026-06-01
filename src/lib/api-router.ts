@@ -1,4 +1,5 @@
 import { isCloudMode } from "./supabase";
+import { isServerMode } from "./server-mode";
 import * as cloud from "./api-supabase";
 import * as local from "./api-local";
 
@@ -44,6 +45,7 @@ export const getActiveCalls = impl.getActiveCalls;
 export const startCall = impl.startCall;
 export const endCall = impl.endCall;
 
-export function getDataMode(): "cloud" | "local" {
+export function getDataMode(): "cloud" | "local" | "server" {
+  if (isServerMode()) return "server";
   return isCloudMode() ? "cloud" : "local";
 }
