@@ -1,4 +1,4 @@
-name: Deploy Crypt (Hostinger VPS)
+name: Deploy Talkeo (Hostinger VPS)
 
 on:
   push:

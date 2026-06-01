@@ -1,4 +1,4 @@
-# Crypt — Messagerie entreprise chiffrée (Supabase)
+# Talkeo — Messagerie entreprise sécurisée
 
 > Dépôt GitHub : [github.com/YTFeez/Crypt](https://github.com/YTFeez/Crypt)
 
@@ -35,7 +35,7 @@ npm run dev
 
 Ouvrez [http://localhost:5175](http://localhost:5175).
 
-**Compte démo :** `demo@crypt.app` / `demo1234`  
+**Compte démo :** `demo@talkeo.app` / `demo1234`  
 **Sans Supabase :** tout est stocké localement dans le navigateur.  
 **Avec Supabase (production) :** copiez `.env.example` → `.env` et renseignez `VITE_SUPABASE_*`.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Crypt — déploiement Hostinger VPS (nginx + build Vite)
+# Talkeo — déploiement Hostinger VPS (nginx + build Vite)
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/crypt}"
@@ -62,4 +62,4 @@ if command -v systemctl >/dev/null 2>&1 && systemctl is-active nginx >/dev/null 
 fi
 
 VER=$(node -e "console.log(require('./package.json').version)" 2>/dev/null || echo "?")
-log "Crypt v${VER} déployé — $(date -u +%Y-%m-%dT%H:%MZ)"
+log "Talkeo v${VER} déployé — $(date -u +%Y-%m-%dT%H:%MZ)"

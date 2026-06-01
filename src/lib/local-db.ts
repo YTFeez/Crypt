@@ -129,22 +129,22 @@ export async function ensureLocalSeed(): Promise<void> {
 
   const demo: Profile = {
     id: demoId,
-    email: "demo@crypt.app",
+    email: "demo@talkeo.app",
     display_name: "Alex Demo",
     handle: "alex",
     avatar_url: null,
     public_key: "",
-    org_name: "Crypt",
+    org_name: "Talkeo",
     created_at: now,
   };
   const marie: Profile = {
     id: marieId,
-    email: "marie@crypt.app",
+    email: "marie@talkeo.app",
     display_name: "Marie Martin",
     handle: "marie",
     avatar_url: null,
     public_key: "",
-    org_name: "Crypt",
+    org_name: "Talkeo",
     created_at: now,
   };
   db.profiles.push(demo, marie);
@@ -254,7 +254,7 @@ export async function localRegister(
     localStorage.setItem(SESSION_KEY, id);
     return { error: null, userId: id };
   } catch (e) {
-    console.error("[Crypt] inscription", e);
+    console.error("[Talkeo] inscription", e);
     return {
       error: e instanceof Error ? e.message : "Erreur lors de l'inscription. Réessayez.",
     };
@@ -307,7 +307,7 @@ export async function localLogin(
     localStorage.setItem(SESSION_KEY, user.id);
     return { error: null, userId: user.id };
   } catch (e) {
-    console.error("[Crypt] connexion", e);
+    console.error("[Talkeo] connexion", e);
     return { error: e instanceof Error ? e.message : "Erreur de connexion." };
   }
 }
@@ -337,5 +337,7 @@ export function notify(channel: string) {
 }
 
 export async function enterGuestSession(): Promise<{ error: string | null; userId?: string }> {
-  return localLogin("demo@crypt.app", "demo1234");
+  let res = await localLogin("demo@talkeo.app", "demo1234");
+  if (res.error) res = await localLogin("demo@crypt.app", "demo1234");
+  return res;
 }

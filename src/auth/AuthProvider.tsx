@@ -182,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInAsGuest = useCallback(async () => {
     const res = await enterGuestSession();
     if (res.error || !res.userId) return res.error ?? "Accès invité indisponible.";
-    const applied = await applyLocalSession(res.userId, "demo@crypt.app");
+    const applied = await applyLocalSession(res.userId, "demo@talkeo.app");
     setLocalUser(applied.user);
     setProfile(applied.profile);
     setSession(null);

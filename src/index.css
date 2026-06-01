@@ -10,11 +10,11 @@
   --text: #050505;
   --text-secondary: #65676b;
   --text-tertiary: #8a8d91;
-  --primary: #0866ff;
-  --primary-hover: #0052cc;
-  --primary-soft: #e7f3ff;
-  --messenger: #0084ff;
-  --messenger-bubble: #0084ff;
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --primary-soft: #ede9fe;
+  --messenger: #6366f1;
+  --messenger-bubble: #7c3aed;
   --messenger-bubble-them: #e4e6eb;
   --success: #31a24c;
   --warning: #f7b928;
@@ -70,6 +70,11 @@ button { cursor: pointer; border: none; background: none; }
 
 .logo-wordmark.logo-light,
 .logo-wordmark.logo-light span { color: #fff; }
+
+.logo-wordmark-text {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
 
 .page-center {
   min-height: 100vh;
@@ -262,7 +267,7 @@ button { cursor: pointer; border: none; background: none; }
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #0866ff, #a855f7);
+  background: linear-gradient(135deg, #7c3aed, #06b6d4);
   flex-shrink: 0;
 }
 
@@ -339,7 +344,7 @@ button { cursor: pointer; border: none; background: none; }
 .bento-card.span-12 { grid-column: span 12; }
 
 .bento-card.featured {
-  background: linear-gradient(145deg, #0866ff 0%, #0052cc 100%);
+  background: linear-gradient(145deg, #7c3aed 0%, #4f46e5 100%);
   color: #fff;
 }
 
@@ -425,7 +430,7 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .auth-brand-panel {
-  background: linear-gradient(160deg, #0866ff 0%, #0047b3 50%, #001d4a 100%);
+  background: linear-gradient(160deg, #7c3aed 0%, #4c1d95 45%, #0e7490 100%);
   color: #fff;
   display: flex;
   flex-direction: column;

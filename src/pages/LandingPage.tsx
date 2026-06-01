@@ -51,14 +51,14 @@ export function LandingPage() {
           <IconLock size={14} />
           Chiffrement de bout en bout
         </p>
-        <h1>La messagerie pro.<br />Pensée pour les équipes.</h1>
+        <h1>Talkeo.<br />La messagerie pro pour les équipes.</h1>
         <p className="hero-lead">
           Messages, appels, dossiers et tableaux — une expérience fluide inspirée des meilleures
           interfaces, avec la sécurité que votre entreprise exige.
         </p>
         <div className="hero-actions" id="commencer">
           <Link to={user ? "/app" : "/inscription"} className="btn btn-primary">
-            {user ? "Accéder à Crypt" : "Créer un compte gratuit"}
+            {user ? "Ouvrir Talkeo" : "Créer un compte gratuit"}
           </Link>
           {!user ? (
             <button type="button" className="btn btn-secondary" disabled={guestLoading} onClick={() => void tryDemo()}>
@@ -89,7 +89,7 @@ export function LandingPage() {
                 <div className="mockup-lines"><div className="l1" /><div className="l2" /></div>
               </div>
               <div className="row">
-                <div className="mockup-avatar" style={{ background: "linear-gradient(135deg,#31a24c,#0866ff)" }} />
+                <div className="mockup-avatar" style={{ background: "linear-gradient(135deg,#06b6d4,#7c3aed)" }} />
                 <div className="mockup-lines"><div className="l1" /><div className="l2" /></div>
               </div>
               <div className="row">
@@ -138,7 +138,7 @@ export function LandingPage() {
         <article className="bento-card span-6">
           <div className="bento-icon"><IconBoard size={24} /></div>
           <h3>Studio de création</h3>
-          <p>Affiches, posts réseaux sociaux et présentations — comme Canva, intégré à Crypt.</p>
+          <p>Affiches, posts réseaux sociaux et présentations — intégré à Talkeo.</p>
         </article>
         <article className="bento-card span-6">
           <div className="bento-icon"><IconShield size={24} /></div>
@@ -154,7 +154,7 @@ export function LandingPage() {
 
       <footer className="marketing-footer">
         <LogoWordmark />
-        <span>© {new Date().getFullYear()} Crypt</span>
+        <span>© {new Date().getFullYear()} Talkeo</span>
       </footer>
     </div>
   );

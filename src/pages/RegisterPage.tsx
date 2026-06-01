@@ -33,7 +33,7 @@ export function RegisterPage() {
     <div className="auth-split">
       <div className="auth-brand-panel">
         <LogoWordmark light />
-        <h2>Rejoignez Crypt.</h2>
+        <h2>Rejoignez Talkeo.</h2>
         <p>Créez votre compte et échangez en toute confidentialité avec votre équipe.</p>
       </div>
       <div className="auth-form-panel">

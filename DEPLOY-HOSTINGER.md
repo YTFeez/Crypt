@@ -1,4 +1,4 @@
-# Crypt sur Hostinger VPS — guide complet
+# Talkeo sur Hostinger VPS — guide complet
 
 ## Prérequis
 

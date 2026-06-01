@@ -1,4 +1,4 @@
--- SecureHub — schéma messagerie entreprise chiffrée
+-- Talkeo — schéma messagerie entreprise
 -- Exécuter dans Supabase SQL Editor ou via CLI: supabase db push
 
 create extension if not exists "uuid-ossp";

@@ -30,7 +30,7 @@ export function AppLayout() {
       <header className="app-topbar">
         <Link to="/app" className="logo-wordmark">
           <Logo size={28} />
-          <span>SecureHub</span>
+          <span className="logo-wordmark-text">Talkeo</span>
         </Link>
         <div className="topbar-search">
           <IconSearch size={16} />
