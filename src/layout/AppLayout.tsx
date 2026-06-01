@@ -1,6 +1,7 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Logo } from "../components/Logo";
+import { NodesBackground } from "../components/NodesBackground";
 import {
   IconMessage,
   IconUsers,
@@ -28,9 +29,10 @@ export function AppLayout() {
 
   return (
     <div className="app-shell">
+      <NodesBackground variant="light" />
       <header className="app-topbar">
         <Link to="/app" className="logo-wordmark">
-          <Logo size={28} />
+          <Logo size={44} />
           <span className="logo-wordmark-text">Talkeo</span>
         </Link>
         <div className="topbar-search">

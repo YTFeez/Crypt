@@ -31,7 +31,7 @@
   --shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.12);
   --nav-rail: 76px;
   --sidebar-w: 360px;
-  --topbar-h: 60px;
+  --topbar-h: 68px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -90,9 +90,100 @@ button { cursor: pointer; border: none; background: none; }
   background: var(--bg-subtle);
 }
 
+/* ─── Motif « nodes » (logo Talkeo) ─── */
+.nodes-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.nodes-bg--light {
+  --nodes-fill: rgba(91, 33, 182, 0.09);
+  --nodes-line: rgba(91, 33, 182, 0.11);
+}
+
+.nodes-bg--dark {
+  --nodes-fill: rgba(255, 255, 255, 0.22);
+  --nodes-line: rgba(255, 255, 255, 0.3);
+}
+
+.nodes-cluster {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.nodes-bg__cluster {
+  position: absolute;
+  width: clamp(120px, 16vw, 200px);
+  opacity: 0.9;
+  animation: nodesDrift 22s ease-in-out infinite;
+}
+
+.nodes-bg__cluster--a {
+  top: 6%;
+  left: 2%;
+  transform: rotate(-14deg);
+}
+
+.nodes-bg__cluster--b {
+  bottom: 8%;
+  right: 1%;
+  width: clamp(140px, 18vw, 240px);
+  transform: rotate(16deg) scale(1.08);
+  animation-delay: -7s;
+}
+
+.nodes-bg__cluster--c {
+  top: 38%;
+  right: 8%;
+  width: clamp(90px, 11vw, 150px);
+  opacity: 0.45;
+  transform: rotate(6deg);
+  animation-delay: -14s;
+}
+
+.auth-aside .nodes-bg__cluster--a {
+  top: auto;
+  bottom: 12%;
+  left: -4%;
+  width: clamp(160px, 22vw, 280px);
+  opacity: 0.75;
+}
+
+.auth-aside .nodes-bg__cluster--b {
+  top: 18%;
+  right: -6%;
+  bottom: auto;
+  opacity: 0.55;
+}
+
+.auth-aside .nodes-bg__cluster--c {
+  top: 52%;
+  left: 28%;
+  right: auto;
+  opacity: 0.35;
+}
+
+.auth-main .nodes-bg__cluster--c {
+  display: none;
+}
+
+@keyframes nodesDrift {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 6px -8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nodes-bg__cluster { animation: none; }
+}
+
 /* ─── Chargement & animations ─── */
 .loading-screen {
   position: relative;
+  isolation: isolate;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -117,7 +208,7 @@ button { cursor: pointer; border: none; background: none; }
 
 .loader-brand {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -739,6 +830,7 @@ button { cursor: pointer; border: none; background: none; }
 
 /* Auth — mise en page professionnelle */
 .auth-page {
+  position: relative;
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(320px, 1.05fr) 1fr;
@@ -747,6 +839,7 @@ button { cursor: pointer; border: none; background: none; }
 
 .auth-aside {
   position: relative;
+  overflow: hidden;
   background: linear-gradient(165deg, #1e1b4b 0%, #4c1d95 42%, #0f766e 100%);
   color: #fff;
   overflow: hidden;
@@ -851,6 +944,8 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .auth-main {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -859,6 +954,8 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .auth-card-pro {
+  position: relative;
+  z-index: 1;
   width: min(420px, 100%);
   background: var(--bg-white);
   border: 1px solid var(--border);
@@ -1058,6 +1155,7 @@ button { cursor: pointer; border: none; background: none; }
 
 /* App shell */
 .app-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -1066,6 +1164,8 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .app-topbar {
+  position: relative;
+  z-index: 10;
   height: var(--topbar-h);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
@@ -1083,7 +1183,13 @@ button { cursor: pointer; border: none; background: none; }
 .app-topbar .logo-wordmark {
   margin-right: auto;
   padding-left: 0.25rem;
-  font-size: 1.05rem;
+  font-size: 1.25rem;
+  gap: 0.75rem;
+}
+
+.app-topbar .logo-img {
+  width: 44px;
+  height: 44px;
 }
 
 .topbar-search {
@@ -1134,6 +1240,8 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .app-body {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -1141,7 +1249,7 @@ button { cursor: pointer; border: none; background: none; }
 
 .nav-rail {
   width: var(--nav-rail);
-  background: var(--bg-white);
+  background: rgba(255, 255, 255, 0.94);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -1192,7 +1300,7 @@ button { cursor: pointer; border: none; background: none; }
   flex: 1;
   overflow: auto;
   min-width: 0;
-  background: var(--bg);
+  background: transparent;
   animation: contentFadeIn 0.35s var(--ease) both;
 }
 

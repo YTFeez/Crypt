@@ -13,7 +13,7 @@ export function LoaderBrand({ label, compact = false }: Props) {
         <div className="loader-orbit loader-orbit--outer" />
         <div className="loader-orbit loader-orbit--inner" />
         <div className="loader-logo-wrap">
-          <Logo size={compact ? 28 : 36} />
+          <Logo size={compact ? 36 : 48} />
         </div>
       </div>
       {label ? <p className="loader-brand-label">{label}</p> : null}
