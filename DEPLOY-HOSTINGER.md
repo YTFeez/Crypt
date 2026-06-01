@@ -92,24 +92,32 @@ Conséquences :
 - Effacer les données du site dans le navigateur = perte du compte local.
 - La vérification e-mail bloque l’accès à l’app tant que le code n’est pas validé.
 
-### Envoyer les e-mails de vérification (sans Supabase)
+### E-mails de vérification (`support@talkeo.fr`)
 
-Par défaut, Talkeo génère un **code à 6 chiffres** côté client. Pour l’envoyer par e-mail en production :
+L’API Talkeo envoie les codes depuis **`support@talkeo.fr`** (inscription, renvoi, changement d’e-mail).
 
-1. Créez un petit endpoint (PHP sur Hostinger mutualisé, ou script Node sur le VPS) qui accepte un POST JSON : `{ "email", "code", "displayName" }`.
-2. Sur le VPS :
-
-```bash
-nano /opt/crypt/.env
-```
+Sur le VPS, configurez la boîte mail Hostinger puis ajoutez dans `/opt/crypt/.env` :
 
 ```env
-VITE_VERIFICATION_EMAIL_URL=https://votredomaine.fr/api/send-verification.php
+TALKEO_MAIL_FROM=support@talkeo.fr
+TALKEO_MAIL_FROM_NAME=Talkeo
+TALKEO_SMTP_HOST=smtp.hostinger.com
+TALKEO_SMTP_PORT=465
+TALKEO_SMTP_SECURE=true
+TALKEO_SMTP_USER=support@talkeo.fr
+TALKEO_SMTP_PASS=votre_mot_de_passe
 ```
 
-3. Redéployez : `bash /opt/crypt/src/infra/deploy.sh`
+Redéployez et redémarrez l’API :
 
-Sans cette URL, les utilisateurs doivent utiliser le code reçu si vous l’envoyez manuellement, ou configurer Supabase Auth (section ci-dessous).
+```bash
+bash /opt/crypt/src/infra/deploy.sh
+sudo systemctl restart talkeo-api
+```
+
+Le client appelle automatiquement `https://votredomaine.fr/api/send-verification` via `VITE_API_URL` (aucun webhook PHP requis).
+
+Sans SMTP, les codes restent visibles dans les logs serveur (`journalctl -u talkeo-api -f`).
 
 ---
 

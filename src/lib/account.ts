@@ -2,7 +2,6 @@ import { isServerMode } from "./server-mode";
 import { apiFetch, setApiToken } from "./server-api";
 import {
   clearVaultMeta,
-  encryptPayload,
   exportVaultMeta,
   hashPassword,
   isVaultUnlocked,
@@ -19,6 +18,7 @@ import { updateProfile } from "./api";
 import {
   createPendingVerification,
   generateVerificationCode,
+  sendVerificationEmail,
   verifyCodeAgainstPending,
 } from "./email-verify";
 
@@ -163,7 +163,8 @@ export async function requestEmailChange(
 
   const code = generateVerificationCode();
   createPendingVerification(`change:${norm}`, user.id, code);
-  return { error: null, devCode: code };
+  const mail = await sendVerificationEmail(norm, code, user.display_name, "email-change");
+  return { error: null, devCode: mail.devCode };
 }
 
 export async function confirmEmailChange(

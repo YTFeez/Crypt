@@ -10,6 +10,7 @@ import {
   isValidEmail,
   normalizePhone,
 } from "./security.js";
+import { sendVerificationCodeMail } from "./mail.js";
 
 export function registerAccountRoutes(app, { db, auth, requireAuth }) {
   app.patch("/api/account/profile", requireAuth, (req, res) => {
@@ -100,10 +101,17 @@ export function registerAccountRoutes(app, { db, auth, requireAuth }) {
          ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, user_id=excluded.user_id`
       ).run(newEmail, req.userId, hashCode(code), expires);
 
-      console.info(`[Talkeo] Changement e-mail → ${newEmail} : ${code}`);
+      const userRow = db.prepare("SELECT display_name FROM users WHERE id = ?").get(req.userId);
+      const mail = await sendVerificationCodeMail({
+        to: newEmail,
+        code,
+        displayName: userRow?.display_name ?? "",
+        purpose: "email-change",
+      });
+      if (!mail.sent) console.info(`[Talkeo] Changement e-mail → ${newEmail} : ${code}`);
       res.json({
         ok: true,
-        devCode: process.env.NODE_ENV !== "production" ? code : undefined,
+        devCode: mail.devCode ?? (process.env.NODE_ENV !== "production" ? code : undefined),
       });
     } catch (e) {
       console.error(e);

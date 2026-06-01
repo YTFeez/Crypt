@@ -15,6 +15,8 @@ import {
 import { rateLimit, clientIp } from "./rate-limit.js";
 import { validatePassword, normalizeEmail, isValidEmail } from "./security.js";
 import { registerAccountRoutes } from "./account.js";
+import { sendVerificationCodeMail } from "./mail.js";
+import { registerSendVerificationRoute } from "./send-verification-route.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.TALKEO_API_PORT ?? 8787);
@@ -163,12 +165,18 @@ app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => 
        ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, user_id=excluded.user_id`
     ).run(norm, id, codeHash, expires);
 
-    console.info(`[Talkeo] Code vérif ${norm}: ${code}`);
+    const mail = await sendVerificationCodeMail({
+      to: norm,
+      code,
+      displayName: displayName.trim(),
+      purpose: "verification",
+    });
+    if (!mail.sent) console.info(`[Talkeo] Code vérif ${norm}: ${code}`);
     res.status(201).json({
       userId: id,
       email: norm,
       needsVerification: true,
-      devCode: process.env.NODE_ENV !== "production" ? code : undefined,
+      devCode: mail.devCode ?? (process.env.NODE_ENV !== "production" ? code : undefined),
     });
   } catch (e) {
     console.error(e);
@@ -237,8 +245,17 @@ app.post("/api/auth/resend-code", async (req, res) => {
        ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at`
     ).run(norm, user.id, hashCode(code), Date.now() + 15 * 60 * 1000);
 
-    console.info(`[Talkeo] Code renvoyé ${norm}: ${code}`);
-    res.json({ ok: true, devCode: process.env.NODE_ENV !== "production" ? code : undefined });
+    const mail = await sendVerificationCodeMail({
+      to: norm,
+      code,
+      displayName: user.display_name,
+      purpose: "verification",
+    });
+    if (!mail.sent) console.info(`[Talkeo] Code renvoyé ${norm}: ${code}`);
+    res.json({
+      ok: true,
+      devCode: mail.devCode ?? (process.env.NODE_ENV !== "production" ? code : undefined),
+    });
   } catch (e) {
     res.status(500).json({ error: "Erreur envoi." });
   }
@@ -246,6 +263,7 @@ app.post("/api/auth/resend-code", async (req, res) => {
 
 const requireAuth = authMiddleware(auth, db);
 
+registerSendVerificationRoute(app);
 registerAccountRoutes(app, { db, auth, requireAuth });
 
 app.get("/api/auth/me", requireAuth, (req, res) => {

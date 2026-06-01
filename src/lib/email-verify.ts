@@ -1,5 +1,8 @@
 import { sha256B64 } from "./crypto";
 
+export const VERIFICATION_FROM_EMAIL = "support@talkeo.fr";
+export const VERIFICATION_FROM_NAME = "Talkeo";
+
 const CODE_TTL_MS = 15 * 60 * 1000;
 
 export type PendingVerification = {
@@ -68,9 +71,22 @@ export function verifyCodeAgainstPending(email: string, code: string): { ok: tru
   return { ok: true, userId: pending.userId };
 }
 
-/** Envoie le code via webhook optionnel (VPS / Edge Function) */
-export async function sendVerificationEmail(email: string, code: string, displayName: string): Promise<{ sent: boolean; devCode?: string }> {
-  const endpoint = (import.meta.env.VITE_VERIFICATION_EMAIL_URL ?? "").trim();
+function getVerificationEndpoint(): string {
+  const explicit = (import.meta.env.VITE_VERIFICATION_EMAIL_URL ?? "").trim();
+  if (explicit) return explicit;
+  const api = (import.meta.env.VITE_API_URL ?? "").trim();
+  if (api) return `${api.replace(/\/$/, "")}/api/send-verification`;
+  return "";
+}
+
+/** Envoie le code via l'API Talkeo (depuis support@talkeo.fr) ou webhook personnalisé */
+export async function sendVerificationEmail(
+  email: string,
+  code: string,
+  displayName: string,
+  purpose: "verification" | "email-change" = "verification"
+): Promise<{ sent: boolean; devCode?: string }> {
+  const endpoint = getVerificationEndpoint();
   if (endpoint) {
     try {
       const res = await fetch(endpoint, {
@@ -80,17 +96,26 @@ export async function sendVerificationEmail(email: string, code: string, display
           email,
           code,
           displayName,
+          purpose,
+          from: VERIFICATION_FROM_EMAIL,
+          fromName: VERIFICATION_FROM_NAME,
           app: "Talkeo",
-          subject: "Votre code de vérification Talkeo",
+          subject:
+            purpose === "email-change"
+              ? "Confirmez votre nouvel e-mail — Talkeo"
+              : "Votre code de vérification Talkeo",
         }),
       });
-      if (res.ok) return { sent: true };
+      if (res.ok) {
+        const body = (await res.json()) as { devCode?: string; sent?: boolean };
+        return { sent: body.sent !== false, devCode: body.devCode };
+      }
     } catch (e) {
       console.warn("[Talkeo] envoi e-mail", e);
     }
   }
   if (import.meta.env.DEV) {
-    console.info(`[Talkeo] Code de vérification pour ${email}: ${code}`);
+    console.info(`[Talkeo] Code (${VERIFICATION_FROM_EMAIL}) pour ${email}: ${code}`);
     return { sent: false, devCode: code };
   }
   return { sent: false };

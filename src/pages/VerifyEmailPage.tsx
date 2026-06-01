@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { AuthLayout } from "../components/AuthLayout";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { VERIFICATION_FROM_EMAIL } from "../lib/email-verify";
 
 type LocationState = { email?: string; devCode?: string };
 
@@ -52,7 +53,7 @@ export function VerifyEmailPage() {
         setInfo(
           res.devCode
             ? `Nouveau code (développement) : ${res.devCode}`
-            : "Un nouvel e-mail a été envoyé. Vérifiez vos spams."
+            : `Un nouvel e-mail a été envoyé depuis ${VERIFICATION_FROM_EMAIL}. Vérifiez vos spams.`
         );
       }
     } finally {
@@ -66,7 +67,7 @@ export function VerifyEmailPage() {
       brandTitle="Protégez l'accès à votre organisation"
       brandDescription="Sans e-mail vérifié, aucune donnée (messages, fichiers, studio) n'est accessible — même en cas de mot de passe correct."
       title="Confirmer votre e-mail"
-      subtitle="Étape 2 — saisissez le code reçu et votre mot de passe"
+      subtitle={`Étape 2 — code envoyé depuis ${VERIFICATION_FROM_EMAIL}`}
       footer={
         <p>
           <Link to="/connexion">Retour à la connexion</Link>
@@ -114,7 +115,7 @@ export function VerifyEmailPage() {
             id="vpassword"
             type="password"
             required
-            minLength={6}
+            minLength={8}
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
