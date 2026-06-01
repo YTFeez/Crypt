@@ -3,6 +3,7 @@ import type { DesignDoc, DesignElement, DesignElementType } from "../../lib/desi
 import { createElement, duplicateElement, nextZIndex } from "../../lib/design/types";
 import { alignElements, snapValue } from "../../lib/design/align";
 import { ExportMenu } from "./ExportMenu";
+import { DesignToolPalette } from "./DesignToolPalette";
 
 type Props = {
   doc: DesignDoc;
@@ -365,76 +366,18 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
           value={doc.name}
           onChange={(e) => onRename(e.target.value)}
         />
-        <div className="design-tool-group">
-          <button type="button" className="btn btn-sm btn-ghost" title="Texte" onClick={() => addElement("text")}>
-            T
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" title="Rectangle" onClick={() => addElement("rect")}>
-            ▢
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" title="Cercle" onClick={() => addElement("circle")}>
-            ○
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" title="Triangle" onClick={() => addElement("triangle")}>
-            △
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" title="Ligne" onClick={() => addElement("line")}>
-            —
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" title="Image" onClick={() => fileRef.current?.click()}>
-            🖼
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onImageFile(f);
-              e.target.value = "";
-            }}
-          />
-        </div>
-        <div className="design-tool-group">
-          <button type="button" className="btn btn-sm btn-ghost" title="Annuler" onClick={undo}>
-            ↶
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" title="Rétablir" onClick={redo}>
-            ↷
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${snapGrid ? "btn-primary" : "btn-ghost"}`}
-            title="Grille magnétique"
-            onClick={() => setSnapGrid((s) => !s)}
-          >
-            ⊞
-          </button>
-        </div>
-        {selected ? (
-          <div className="design-tool-group">
-            {(["left", "center-h", "right", "top", "center-v", "bottom"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                className="btn btn-sm btn-ghost"
-                title={m}
-                onClick={() =>
-                  updateDoc({
-                    elements: alignElements(doc.elements, [selected.id], m, {
-                      width: doc.width,
-                      height: doc.height,
-                    }),
-                  })
-                }
-              >
-                {m === "left" ? "⫷" : m === "right" ? "⫸" : m === "center-h" ? "═" : m === "top" ? "⫠" : m === "bottom" ? "⫡" : "║"}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="design-tool-group">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onImageFile(f);
+            e.target.value = "";
+          }}
+        />
+        <div className="design-tool-group design-tool-group-zoom">
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setZoom((z) => Math.max(0.2, z - 0.1))}>
             −
           </button>
@@ -452,6 +395,24 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
       </div>
 
       <div className="design-workspace">
+        <DesignToolPalette
+          onAdd={addElement}
+          onPickImage={() => fileRef.current?.click()}
+          onUndo={undo}
+          onRedo={redo}
+          snapGrid={snapGrid}
+          onToggleSnap={() => setSnapGrid((s) => !s)}
+          hasSelection={!!selected}
+          onAlign={(m) => {
+            if (!selected) return;
+            updateDoc({
+              elements: alignElements(doc.elements, [selected.id], m, {
+                width: doc.width,
+                height: doc.height,
+              }),
+            });
+          }}
+        />
         <aside className="design-inspector">
           <h3>Calques</h3>
           <ul className="design-layers">

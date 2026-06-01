@@ -1,11 +1,13 @@
 import { FormEvent, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogoWordmark } from "../components/Logo";
 
 export function LoginPage() {
   const { signIn, signInAsGuest, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const verifiedBanner = (location.state as { verified?: boolean } | null)?.verified;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,21 @@ export function LoginPage() {
         <div className="auth-card">
           <h1>Connexion</h1>
           <p className="subtitle">Entrez vos identifiants.</p>
-          {error ? <div className="alert alert-error">{error}</div> : null}
+          {verifiedBanner ? (
+            <div className="alert alert-info">E-mail confirmé. Vous pouvez vous connecter.</div>
+          ) : null}
+          {error ? (
+            <div className="alert alert-error">
+              {error}
+              {error.includes("non vérifié") ? (
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.85rem" }}>
+                  <Link to="/verification-email" state={{ email }}>
+                    Saisir le code de vérification
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <form onSubmit={onSubmit}>
             <div className="field">
               <label htmlFor="email">Adresse e-mail</label>

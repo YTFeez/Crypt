@@ -9,9 +9,10 @@ import {
   archiveDesign,
   runAutoArchive,
 } from "../lib/api";
-import { PAGE_FORMAT_OPTIONS, type PageFormatOption } from "../lib/design/formats";
+import { resolveFormatDimensions } from "../lib/design/formats";
 import { createDesignFromFormat, type DesignDoc } from "../lib/design/types";
 import { DesignEditor } from "../components/design/DesignEditor";
+import { NewDocumentModal } from "../components/design/NewDocumentModal";
 import { subscribeDesign } from "../lib/subscriptions";
 
 export function DesignStudioPage() {
@@ -57,14 +58,21 @@ export function DesignStudioPage() {
     scheduleSave(doc);
   }
 
-  async function startFromFormat(format: PageFormatOption) {
+  async function startDocument(opts: {
+    formatId: string;
+    qualityId?: string;
+    name: string;
+    width: number;
+    height: number;
+    background: string;
+  }) {
     if (!user) return;
     const doc = createDesignFromFormat(user.id, {
-      width: format.width,
-      height: format.height,
-      background: format.background,
-      name: format.name,
-      qualityId: `${format.formatId}-${format.qualityId}`,
+      width: opts.width,
+      height: opts.height,
+      background: opts.background,
+      name: opts.name,
+      qualityId: opts.qualityId ? `a4-${opts.qualityId}` : opts.formatId,
     });
     await createDesign(doc);
     setDesigns((d) => [doc, ...d]);
@@ -73,8 +81,15 @@ export function DesignStudioPage() {
   }
 
   async function startBlank() {
-    const a4draft = PAGE_FORMAT_OPTIONS.find((f) => f.formatId === "a4" && f.qualityId === "draft");
-    if (a4draft) await startFromFormat(a4draft);
+    const d = resolveFormatDimensions("a4", "draft");
+    await startDocument({
+      formatId: "a4",
+      qualityId: "draft",
+      name: d.label,
+      width: d.width,
+      height: d.height,
+      background: d.background,
+    });
   }
 
   async function archiveActive() {
@@ -169,38 +184,10 @@ export function DesignStudioPage() {
       </div>
 
       {showTemplates ? (
-        <div className="design-modal-backdrop" onClick={() => setShowTemplates(false)}>
-          <div className="design-modal panel" onClick={(e) => e.stopPropagation()}>
-            <div className="panel-header row" style={{ justifyContent: "space-between" }}>
-              <strong>Nouveau document</strong>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTemplates(false)}>
-                Fermer
-              </button>
-            </div>
-            <div className="panel-body design-template-grid">
-              {PAGE_FORMAT_OPTIONS.map((t) => (
-                <button
-                  key={`${t.formatId}-${t.qualityId}`}
-                  type="button"
-                  className="design-template-card"
-                  onClick={() => void startFromFormat(t)}
-                >
-                  <div
-                    className="design-template-preview"
-                    style={{
-                      aspectRatio: `${t.width} / ${t.height}`,
-                      background: t.background,
-                    }}
-                  />
-                  <strong>{t.name}</strong>
-                  <span className="muted">
-                    {t.width} × {t.height} px · {t.dpi} DPI
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <NewDocumentModal
+          onClose={() => setShowTemplates(false)}
+          onCreate={(opts) => void startDocument(opts)}
+        />
       ) : null}
     </div>
   );

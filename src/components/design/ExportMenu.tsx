@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { DesignDoc } from "../../lib/design/types";
 import {
-  EXPORT_FORMAT_LABELS,
+  EXPORT_FORMAT_OPTIONS,
+  EXPORT_QUALITY_OPTIONS,
   EXPORT_QUALITY_SCALE,
   type ExportFormat,
   type ExportQualityBoost,
@@ -32,27 +33,39 @@ export function ExportMenu({ doc }: Props) {
   return (
     <div className="export-menu-wrap">
       <button type="button" className="btn btn-sm btn-primary" onClick={() => setOpen((o) => !o)}>
-        Exporter ▾
+        Télécharger ▾
       </button>
       {open ? (
         <div className="export-menu-panel">
-          <p className="export-menu-title">Format</p>
-          {(Object.keys(EXPORT_FORMAT_LABELS) as ExportFormat[]).map((f) => (
-            <label key={f} className="export-menu-option">
-              <input type="radio" name="fmt" checked={format === f} onChange={() => setFormat(f)} />
-              {EXPORT_FORMAT_LABELS[f]}
+          <p className="export-menu-title">Choisir le format de fichier</p>
+          {EXPORT_FORMAT_OPTIONS.map((f) => (
+            <label key={f.id} className={`export-menu-option${format === f.id ? " active" : ""}`}>
+              <input type="radio" name="fmt" checked={format === f.id} onChange={() => setFormat(f.id)} />
+              <span>
+                <strong>{f.label}</strong>
+                <span className="muted">{f.hint}</span>
+              </span>
             </label>
           ))}
           {format !== "json" && format !== "svg" ? (
             <>
-              <p className="export-menu-title" style={{ marginTop: "0.75rem" }}>
-                Résolution d&apos;export
+              <p className="export-menu-title" style={{ marginTop: "0.85rem" }}>
+                Définition à l&apos;export
               </p>
-              {(Object.keys(EXPORT_QUALITY_SCALE) as ExportQualityBoost[]).map((q) => (
-                <label key={q} className="export-menu-option">
-                  <input type="radio" name="boost" checked={boost === q} onChange={() => setBoost(q)} />
-                  {q} ({Math.round(doc.width * EXPORT_QUALITY_SCALE[q])}×
-                  {Math.round(doc.height * EXPORT_QUALITY_SCALE[q])} px)
+              <p className="muted" style={{ fontSize: "0.75rem", margin: "0 0 0.5rem" }}>
+                Par défaut : même taille que le canevas ({doc.width}×{doc.height} px).
+              </p>
+              {EXPORT_QUALITY_OPTIONS.map((q) => (
+                <label key={q.id} className={`export-menu-option${boost === q.id ? " active" : ""}`}>
+                  <input type="radio" name="boost" checked={boost === q.id} onChange={() => setBoost(q.id)} />
+                  <span>
+                    <strong>{q.label}</strong>
+                    <span className="muted">{q.hint}</span>
+                    <span className="design-format-size">
+                      → {Math.round(doc.width * EXPORT_QUALITY_SCALE[q.id])}×
+                      {Math.round(doc.height * EXPORT_QUALITY_SCALE[q.id])} px
+                    </span>
+                  </span>
                 </label>
               ))}
             </>
@@ -60,11 +73,11 @@ export function ExportMenu({ doc }: Props) {
           <button
             type="button"
             className="btn btn-primary btn-block btn-sm"
-            style={{ marginTop: "0.75rem" }}
+            style={{ marginTop: "0.85rem" }}
             disabled={busy}
             onClick={() => void runExport()}
           >
-            {busy ? "Export…" : "Télécharger"}
+            {busy ? "Export en cours…" : `Exporter en ${EXPORT_FORMAT_OPTIONS.find((x) => x.id === format)?.label}`}
           </button>
         </div>
       ) : null}

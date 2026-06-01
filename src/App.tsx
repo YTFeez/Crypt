@@ -4,6 +4,8 @@ import { AppLayout } from "./layout/AppLayout";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { MessagesPage } from "./pages/MessagesPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { GroupsPage } from "./pages/GroupsPage";
@@ -26,6 +28,8 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/connexion" element={<LoginPage />} />
       <Route path="/inscription" element={<RegisterPage />} />
+      <Route path="/verification-email" element={<VerifyEmailPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route
         path="/app"
         element={

@@ -28,6 +28,11 @@ import {
   invalidateVaultCache,
 } from "./storage";
 import { upsertPublicProfile, listPublicProfiles } from "./profile-index";
+import {
+  createPendingVerification,
+  generateVerificationCode,
+  sendVerificationEmail,
+} from "./email-verify";
 
 const SESSION_KEY = "crypt-session-v1";
 const USERS_KEY = "crypt-users-v2";
@@ -40,6 +45,8 @@ export type LocalUser = {
   passwordSalt: string;
   display_name: string;
   handle: string;
+  /** Absent ou true = compte actif ; false = en attente de vérification e-mail */
+  emailVerified?: boolean;
 };
 
 export type Db = {
@@ -159,6 +166,7 @@ export async function ensureLocalSeed(): Promise<void> {
       passwordSalt: demoCred.salt,
       display_name: demo.display_name,
       handle: demo.handle,
+      emailVerified: true,
     },
     {
       id: marieId,
@@ -167,6 +175,7 @@ export async function ensureLocalSeed(): Promise<void> {
       passwordSalt: demoCred.salt,
       display_name: marie.display_name,
       handle: marie.handle,
+      emailVerified: true,
     },
   ]);
 
@@ -195,16 +204,32 @@ export async function ensureLocalSeed(): Promise<void> {
   localStorage.setItem(SEED_FLAG, "1");
 }
 
+function isEmailVerified(user: LocalUser): boolean {
+  return user.emailVerified !== false;
+}
+
 export async function localRegister(
   email: string,
   password: string,
   displayName: string
-): Promise<{ error: string | null; userId?: string }> {
+): Promise<{ error: string | null; userId?: string; needsVerification?: boolean; devCode?: string }> {
   try {
     await ensureLocalSeed();
     const users = getLocalUsers();
     const norm = email.trim().toLowerCase();
-    if (users.some((u) => u.email.toLowerCase() === norm)) {
+    const existing = users.find((u) => u.email.toLowerCase() === norm);
+    if (existing) {
+      if (!isEmailVerified(existing)) {
+        const code = generateVerificationCode();
+        createPendingVerification(norm, existing.id, code);
+        const mail = await sendVerificationEmail(norm, code, existing.display_name);
+        return {
+          error: null,
+          userId: existing.id,
+          needsVerification: true,
+          devCode: mail.devCode,
+        };
+      }
       return { error: "Cet e-mail est déjà utilisé." };
     }
 
@@ -216,14 +241,6 @@ export async function localRegister(
     while (allProfiles.some((p) => p.handle === handle)) {
       n++;
       handle = baseHandle + n;
-    }
-
-    clearVaultMeta();
-    invalidateVaultCache();
-
-    const unlock = await unlockVault(password, { userId: id, create: true });
-    if (!unlock.ok) {
-      return { error: unlock.error ?? "Impossible d'initialiser le chiffrement." };
     }
 
     const cred = await hashPassword(password);
@@ -246,13 +263,20 @@ export async function localRegister(
       passwordSalt: cred.salt,
       display_name: displayName.trim(),
       handle,
+      emailVerified: false,
     });
     saveLocalUsers(users);
 
-    await saveVault(id, { ...emptyDb(), profiles: [profile] });
+    const code = generateVerificationCode();
+    createPendingVerification(norm, id, code);
+    const mail = await sendVerificationEmail(norm, code, displayName.trim());
 
-    localStorage.setItem(SESSION_KEY, id);
-    return { error: null, userId: id };
+    return {
+      error: null,
+      userId: id,
+      needsVerification: true,
+      devCode: mail.devCode,
+    };
   } catch (e) {
     console.error("[Talkeo] inscription", e);
     return {
@@ -288,6 +312,12 @@ export async function localLogin(
       }
     }
     if (!valid) return { error: "E-mail ou mot de passe incorrect." };
+
+    if (!isEmailVerified(user)) {
+      return {
+        error: "E-mail non vérifié. Consultez votre boîte mail ou saisissez le code reçu.",
+      };
+    }
 
     clearVaultMeta();
     invalidateVaultCache();
@@ -334,6 +364,61 @@ export function attachProfiles(friendships: Friendship[], db: Db): Friendship[] 
 
 export function notify(channel: string) {
   emitRealtime(channel);
+}
+
+export async function completeLocalEmailVerification(
+  userId: string,
+  password: string
+): Promise<{ error: string | null }> {
+  const users = getLocalUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+  if (idx < 0) return { error: "Compte introuvable." };
+
+  const user = users[idx]!;
+  if (isEmailVerified(user)) return { error: null };
+
+  clearVaultMeta();
+  invalidateVaultCache();
+
+  const unlock = await unlockVault(password, { userId, create: true });
+  if (!unlock.ok) {
+    return { error: unlock.error ?? "Impossible d'initialiser le chiffrement." };
+  }
+
+  const profile = listPublicProfiles().find((p) => p.id === userId);
+  if (profile) {
+    await saveVault(userId, { ...emptyDb(), profiles: [profile] });
+  }
+
+  users[idx] = { ...user, emailVerified: true };
+  saveLocalUsers(users);
+  localStorage.setItem(SESSION_KEY, userId);
+  return { error: null };
+}
+
+export function markLocalEmailVerifiedByEmail(email: string): boolean {
+  const norm = email.trim().toLowerCase();
+  const users = getLocalUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === norm);
+  if (idx < 0) return false;
+  if (isEmailVerified(users[idx]!)) return true;
+  users[idx] = { ...users[idx]!, emailVerified: true };
+  saveLocalUsers(users);
+  return true;
+}
+
+export async function resendLocalVerificationCode(
+  email: string
+): Promise<{ error: string | null; devCode?: string }> {
+  const norm = email.trim().toLowerCase();
+  const user = getLocalUsers().find((u) => u.email.toLowerCase() === norm);
+  if (!user) return { error: "Aucun compte pour cet e-mail." };
+  if (isEmailVerified(user)) return { error: "Cet e-mail est déjà vérifié. Connectez-vous." };
+
+  const code = generateVerificationCode();
+  createPendingVerification(norm, user.id, code);
+  const mail = await sendVerificationEmail(norm, code, user.display_name);
+  return { error: null, devCode: mail.devCode };
 }
 
 export async function enterGuestSession(): Promise<{ error: string | null; userId?: string }> {

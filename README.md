@@ -25,6 +25,9 @@ Plateforme professionnelle : messagerie E2E, contacts, groupes, appels audio/vid
    `supabase/migrations/001_initial_schema.sql`
 3. Vérifiez **Database → Replication** : Realtime activé pour `messages`, `boards`, `calls`
 4. **Authentication → Providers** : activez Email
+5. **Authentication → Email** : activez **Confirm email** (vérification obligatoire)
+6. **Authentication → URL Configuration** : ajoutez `https://votredomaine.fr/auth/callback` dans **Redirect URLs**
+7. Exécutez aussi `supabase/migrations/004_email_verified.sql`
 
 ### 2. Lancer l'application (fonctionne tout de suite)
 

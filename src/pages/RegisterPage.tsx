@@ -19,9 +19,14 @@ export function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      const err = await signUp(email, password, displayName);
-      if (err) setError(err);
-      else navigate("/app", { replace: true });
+      const result = await signUp(email, password, displayName);
+      if (!result.ok) setError(result.error);
+      else if (result.needsVerification) {
+        navigate("/verification-email", {
+          replace: true,
+          state: { email: result.email, devCode: result.devCode },
+        });
+      } else navigate("/app", { replace: true });
     } catch {
       setError("Erreur lors de l'inscription.");
     } finally {
@@ -55,7 +60,7 @@ export function RegisterPage() {
               <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <p className="muted" style={{ fontSize: "0.75rem", margin: "0 0 0.75rem" }}>
-              En créant un compte, vous acceptez nos conditions d'utilisation entreprise.
+              Un code de vérification sera envoyé à votre adresse e-mail avant la première connexion.
             </p>
             <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
               {loading ? "Création du compte…" : "S'inscrire"}
