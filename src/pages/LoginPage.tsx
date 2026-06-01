@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogoWordmark } from "../components/Logo";
+import { AuthLayout } from "../components/AuthLayout";
 
 export function LoginPage() {
   const { signIn, signInAsGuest, user } = useAuth();
@@ -43,72 +43,74 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-split">
-      <div className="auth-brand-panel">
-        <LogoWordmark light />
-        <h2>Messagerie sécurisée pour votre équipe.</h2>
-        <p>Connectez-vous pour accéder à vos conversations et dossiers.</p>
-      </div>
-      <div className="auth-form-panel">
-        <div className="auth-card">
-          <h1>Connexion</h1>
-          <p className="subtitle">Entrez vos identifiants.</p>
-          {verifiedBanner ? (
-            <div className="alert alert-info">E-mail confirmé. Vous pouvez vous connecter.</div>
+    <AuthLayout
+      badge="Accès sécurisé"
+      brandTitle="Votre espace de travail confidentiel"
+      brandDescription="Messagerie, dossiers partagés et studio créatif — conçus pour les équipes qui exigent discrétion et clarté."
+      title="Connexion"
+      subtitle="Identifiez-vous avec votre compte professionnel."
+      footer={
+        <p>
+          Pas encore de compte ? <Link to="/inscription">Créer un compte</Link>
+        </p>
+      }
+    >
+      {verifiedBanner ? (
+        <div className="alert alert-success">E-mail confirmé. Vous pouvez vous connecter.</div>
+      ) : null}
+      {error ? (
+        <div className="alert alert-error">
+          {error}
+          {error.includes("non vérifié") ? (
+            <p className="alert-action">
+              <Link to="/verification-email" state={{ email }}>
+                Valider mon e-mail →
+              </Link>
+            </p>
           ) : null}
-          {error ? (
-            <div className="alert alert-error">
-              {error}
-              {error.includes("non vérifié") ? (
-                <p style={{ margin: "0.5rem 0 0", fontSize: "0.85rem" }}>
-                  <Link to="/verification-email" state={{ email }}>
-                    Saisir le code de vérification
-                  </Link>
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          <form onSubmit={onSubmit}>
-            <div className="field">
-              <label htmlFor="email">Adresse e-mail</label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="password">Mot de passe</label>
-              <input
-                id="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: "0.5rem" }} disabled={loading}>
-              {loading ? "Connexion…" : "Se connecter"}
-            </button>
-          </form>
-          <button
-            type="button"
-            className="btn btn-secondary btn-block"
-            style={{ marginTop: "0.65rem" }}
-            disabled={loading}
-            onClick={() => void onGuest()}
-          >
-            Explorer sans compte
-          </button>
-          <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
-            Pas de compte ? <Link to="/inscription">Créer un compte</Link>
-          </p>
         </div>
+      ) : null}
+      <form onSubmit={onSubmit} className="auth-form">
+        <div className="field">
+          <label htmlFor="email">Adresse e-mail</label>
+          <input
+            id="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="vous@entreprise.fr"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="password">Mot de passe</label>
+          <input
+            id="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+          {loading ? "Connexion…" : "Se connecter"}
+        </button>
+      </form>
+      <div className="auth-divider">
+        <span>ou</span>
       </div>
-    </div>
+      <button
+        type="button"
+        className="btn btn-secondary btn-block"
+        disabled={loading}
+        onClick={() => void onGuest()}
+      >
+        Parcourir la démo (compte vérifié)
+      </button>
+      <p className="auth-hint">La démo utilise un compte entreprise préactivé — sans inscription.</p>
+    </AuthLayout>
   );
 }

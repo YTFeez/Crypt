@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogoWordmark } from "../components/Logo";
+import { AuthLayout } from "../components/AuthLayout";
 
 export function RegisterPage() {
   const { signUp, user } = useAuth();
@@ -35,42 +35,65 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="auth-split">
-      <div className="auth-brand-panel">
-        <LogoWordmark light />
-        <h2>Rejoignez Talkeo.</h2>
-        <p>Créez votre compte et échangez en toute confidentialité avec votre équipe.</p>
-      </div>
-      <div className="auth-form-panel">
-        <div className="auth-card">
-          <h1>Inscription</h1>
-          <p className="subtitle">C'est rapide et gratuit pour commencer.</p>
-          {error ? <div className="alert alert-error">{error}</div> : null}
-          <form onSubmit={onSubmit}>
-            <div className="field">
-              <label htmlFor="name">Nom et prénom</label>
-              <input id="name" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Jean Dupont" />
-            </div>
-            <div className="field">
-              <label htmlFor="email">E-mail professionnel</label>
-              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="field">
-              <label htmlFor="password">Mot de passe</label>
-              <input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-            <p className="muted" style={{ fontSize: "0.75rem", margin: "0 0 0.75rem" }}>
-              Un code de vérification sera envoyé à votre adresse e-mail avant la première connexion.
-            </p>
-            <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-              {loading ? "Création du compte…" : "S'inscrire"}
-            </button>
-          </form>
-          <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
-            Déjà membre ? <Link to="/connexion">Connexion</Link>
-          </p>
+    <AuthLayout
+      badge="Inscription entreprise"
+      brandTitle="Rejoignez votre équipe sur Talkeo"
+      brandDescription="Créez un compte sécurisé. L'accès à l'application est ouvert uniquement après validation de votre adresse e-mail."
+      title="Créer un compte"
+      subtitle="Étape 1 — identité et accès"
+      footer={
+        <p>
+          Déjà inscrit ? <Link to="/connexion">Se connecter</Link>
+        </p>
+      }
+    >
+      {error ? <div className="alert alert-error">{error}</div> : null}
+      <form onSubmit={onSubmit} className="auth-form">
+        <div className="field">
+          <label htmlFor="name">Nom complet</label>
+          <input
+            id="name"
+            required
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="Jean Dupont"
+            autoComplete="name"
+          />
         </div>
-      </div>
-    </div>
+        <div className="field">
+          <label htmlFor="email">E-mail professionnel</label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="vous@entreprise.fr"
+            autoComplete="email"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="password">Mot de passe</label>
+          <input
+            id="password"
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="6 caractères minimum"
+            autoComplete="new-password"
+          />
+        </div>
+        <p className="auth-legal">
+          En continuant, vous confirmez disposer d&apos;une adresse e-mail professionnelle valide. Un code de
+          vérification vous sera envoyé — l&apos;application reste inaccessible tant que l&apos;e-mail n&apos;est pas
+          confirmé.
+        </p>
+        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+          {loading ? "Création…" : "Continuer"}
+        </button>
+      </form>
+    </AuthLayout>
   );
 }

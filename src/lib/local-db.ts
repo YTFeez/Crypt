@@ -208,6 +208,19 @@ function isEmailVerified(user: LocalUser): boolean {
   return user.emailVerified !== false;
 }
 
+export function isLocalUserEmailVerifiedById(userId: string): boolean {
+  const user = getLocalUsers().find((u) => u.id === userId);
+  if (!user) return false;
+  return isEmailVerified(user);
+}
+
+export function isLocalUserEmailVerifiedByEmail(email: string): boolean {
+  const norm = email.trim().toLowerCase();
+  const user = getLocalUsers().find((u) => u.email.toLowerCase() === norm);
+  if (!user) return false;
+  return isEmailVerified(user);
+}
+
 export async function localRegister(
   email: string,
   password: string,
@@ -405,6 +418,17 @@ export function markLocalEmailVerifiedByEmail(email: string): boolean {
   users[idx] = { ...users[idx]!, emailVerified: true };
   saveLocalUsers(users);
   return true;
+}
+
+/** Déconnecte et invalide la session si l'e-mail n'est pas vérifié */
+export function enforceVerifiedSession(): { ok: true } | { ok: false; email: string } {
+  const id = getLocalSessionUserId();
+  if (!id) return { ok: true };
+  if (isLocalUserEmailVerifiedById(id)) return { ok: true };
+  const user = getLocalUsers().find((u) => u.id === id);
+  const email = user?.email ?? "";
+  localLogout();
+  return { ok: false, email };
 }
 
 export async function resendLocalVerificationCode(

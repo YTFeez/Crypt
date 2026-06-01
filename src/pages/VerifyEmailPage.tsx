@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
-import { LogoWordmark } from "../components/Logo";
+import { AuthLayout } from "../components/AuthLayout";
 
 type LocationState = { email?: string; devCode?: string };
 
@@ -51,7 +51,7 @@ export function VerifyEmailPage() {
         setInfo(
           res.devCode
             ? `Nouveau code (développement) : ${res.devCode}`
-            : "Un nouvel e-mail de vérification a été envoyé."
+            : "Un nouvel e-mail a été envoyé. Vérifiez vos spams."
         );
       }
     } finally {
@@ -60,77 +60,77 @@ export function VerifyEmailPage() {
   }
 
   return (
-    <div className="auth-split">
-      <div className="auth-brand-panel">
-        <LogoWordmark light />
-        <h2>Vérifiez votre e-mail</h2>
+    <AuthLayout
+      badge="Vérification obligatoire"
+      brandTitle="Protégez l'accès à votre organisation"
+      brandDescription="Sans e-mail vérifié, aucune donnée (messages, fichiers, studio) n'est accessible — même en cas de mot de passe correct."
+      title="Confirmer votre e-mail"
+      subtitle="Étape 2 — saisissez le code reçu et votre mot de passe"
+      footer={
         <p>
-          Nous avons envoyé un code à 6 chiffres (ou un lien si Supabase est configuré). Saisissez-le
-          ci-dessous avec votre mot de passe pour activer le compte.
+          <Link to="/connexion">Retour à la connexion</Link>
         </p>
+      }
+    >
+      <div className="verify-steps" aria-label="Progression">
+        <span className="done">Compte créé</span>
+        <span className="active">Vérification</span>
+        <span>Accès app</span>
       </div>
-      <div className="auth-form-panel">
-        <div className="auth-card">
-          <h1>Confirmation</h1>
-          <p className="subtitle">Code reçu par e-mail</p>
-          {error ? <div className="alert alert-error">{error}</div> : null}
-          {info ? <div className="alert alert-info">{info}</div> : null}
-          <form onSubmit={onSubmit}>
-            <div className="field">
-              <label htmlFor="vemail">E-mail</label>
-              <input
-                id="vemail"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="vcode">Code à 6 chiffres</label>
-              <input
-                id="vcode"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]{6}"
-                maxLength={6}
-                required
-                autoComplete="one-time-code"
-                placeholder="123456"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="vpassword">Mot de passe (créé à l&apos;inscription)</label>
-              <input
-                id="vpassword"
-                type="password"
-                required
-                minLength={6}
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-              {loading ? "Vérification…" : "Valider mon compte"}
-            </button>
-          </form>
-          <button
-            type="button"
-            className="btn btn-ghost btn-block"
-            style={{ marginTop: "0.5rem" }}
-            disabled={resending}
-            onClick={() => void onResend()}
-          >
-            {resending ? "Envoi…" : "Renvoyer le code / l'e-mail"}
-          </button>
-          <p className="muted" style={{ marginTop: "1.25rem", fontSize: "0.875rem", textAlign: "center" }}>
-            <Link to="/connexion">Retour à la connexion</Link>
-          </p>
+      {error ? <div className="alert alert-error">{error}</div> : null}
+      {info ? <div className="alert alert-info">{info}</div> : null}
+      <form onSubmit={onSubmit} className="auth-form">
+        <div className="field">
+          <label htmlFor="vemail">E-mail</label>
+          <input
+            id="vemail"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="vous@entreprise.fr"
+          />
         </div>
-      </div>
-    </div>
+        <div className="field">
+          <label htmlFor="vcode">Code à 6 chiffres</label>
+          <input
+            id="vcode"
+            className="input-code"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+            autoComplete="one-time-code"
+            placeholder="000000"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="vpassword">Mot de passe d&apos;inscription</label>
+          <input
+            id="vpassword"
+            type="password"
+            required
+            minLength={6}
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
+          {loading ? "Activation…" : "Activer mon compte"}
+        </button>
+      </form>
+      <button
+        type="button"
+        className="btn btn-ghost btn-block"
+        disabled={resending}
+        onClick={() => void onResend()}
+      >
+        {resending ? "Envoi…" : "Renvoyer le code"}
+      </button>
+    </AuthLayout>
   );
 }

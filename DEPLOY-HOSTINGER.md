@@ -36,9 +36,49 @@ sudo DOMAIN=crypt.votredomaine.fr EMAIL=admin@votredomaine.fr bash infra/setup-v
 
 ---
 
+## Où sont stockés les comptes (Hostinger, sans Supabase) ?
+
+Le VPS ne stocke **aucun compte utilisateur**. Il sert uniquement le site (fichiers dans `/opt/crypt/www`).
+
+Chaque visiteur garde ses données **dans son navigateur** :
+
+| Donnée | Stockage |
+|--------|----------|
+| E-mail + mot de passe (hash Argon2) | `localStorage` → `crypt-users-v2` |
+| Session | `localStorage` → `crypt-session-v1` |
+| Messages, dossiers, studio (chiffrés) | **IndexedDB** → `crypt-store` |
+| Profils pour la recherche | `localStorage` → `crypt-profile-index-v1` |
+
+Conséquences :
+
+- Un compte créé sur le PC **n’existe pas** sur le téléphone (sauf si vous ajoutez Supabase plus tard).
+- Effacer les données du site dans le navigateur = perte du compte local.
+- La vérification e-mail bloque l’accès à l’app tant que le code n’est pas validé.
+
+### Envoyer les e-mails de vérification (sans Supabase)
+
+Par défaut, Talkeo génère un **code à 6 chiffres** côté client. Pour l’envoyer par e-mail en production :
+
+1. Créez un petit endpoint (PHP sur Hostinger mutualisé, ou script Node sur le VPS) qui accepte un POST JSON : `{ "email", "code", "displayName" }`.
+2. Sur le VPS :
+
+```bash
+nano /opt/crypt/.env
+```
+
+```env
+VITE_VERIFICATION_EMAIL_URL=https://votredomaine.fr/api/send-verification.php
+```
+
+3. Redéployez : `bash /opt/crypt/src/infra/deploy.sh`
+
+Sans cette URL, les utilisateurs doivent utiliser le code reçu si vous l’envoyez manuellement, ou configurer Supabase Auth (section ci-dessous).
+
+---
+
 ## Supabase (optionnel)
 
-L’app **fonctionne sans Supabase** (mode local, données dans le navigateur de chaque visiteur).
+L’app **fonctionne sans Supabase** — c’est le cas standard sur Hostinger (mode local, données dans le navigateur de chaque visiteur).
 
 Pour une messagerie **multi-appareils / multi-utilisateurs cloud** :
 

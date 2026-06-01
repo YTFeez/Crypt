@@ -39,7 +39,7 @@ export function AppLayout() {
         </div>
         <NavLink to="/app/parametres" className="topbar-user" title="Paramètres">
           <span className="avatar sm">{initial}</span>
-          <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>{profile?.display_name?.split(" ")[0]}</span>
+          <span className="topbar-user-name">{profile?.display_name?.split(" ")[0]}</span>
         </NavLink>
       </header>
 

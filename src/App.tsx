@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthProvider";
 import { AppLayout } from "./layout/AppLayout";
+import { LoadingScreen } from "./components/LoadingScreen";
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -14,11 +15,22 @@ import { FoldersPage } from "./pages/FoldersPage";
 import { DesignStudioPage } from "./pages/DesignStudioPage";
 import { ArchivesPage } from "./pages/ArchivesPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { enforceVerifiedSession } from "./lib/local-db";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="page-center"><div className="spinner" /></div>;
-  if (!user) return <Navigate to="/connexion" replace />;
+  const { user, loading, emailVerified } = useAuth();
+
+  if (loading) return <LoadingScreen label="Ouverture de Talkeo…" />;
+
+  const gate = enforceVerifiedSession();
+  if (!gate.ok) {
+    return <Navigate to="/verification-email" replace state={{ email: gate.email }} />;
+  }
+
+  if (!user || !emailVerified) {
+    return <Navigate to="/connexion" replace />;
+  }
+
   return <>{children}</>;
 }
 

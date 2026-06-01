@@ -22,6 +22,7 @@ import {
   completeLocalEmailVerification,
   resendLocalVerificationCode,
   markLocalEmailVerifiedByEmail,
+  isLocalUserEmailVerifiedById,
 } from "../lib/local-db";
 import { verifyCodeAgainstPending } from "../lib/email-verify";
 import type { Profile } from "../lib/types";
@@ -36,6 +37,7 @@ type AuthState = {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  emailVerified: boolean;
   mode: "cloud" | "local";
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, displayName: string) => Promise<SignUpResult>;
@@ -56,6 +58,10 @@ function localUserStub(id: string, email: string): User {
 function appOrigin(): string {
   if (typeof window !== "undefined") return window.location.origin;
   return "";
+}
+
+function isSupabaseUserConfirmed(u: User): boolean {
+  return !!(u.email_confirmed_at ?? u.confirmed_at);
 }
 
 async function applyLocalSession(userId: string, email: string) {
@@ -79,16 +85,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mode = getDataMode();
   const cloud = isCloudMode();
 
-  const user = localUser ?? (cloud ? session?.user ?? null : null);
+  const rawUser = localUser ?? (cloud ? session?.user ?? null : null);
+
+  const emailVerified = useMemo(() => {
+    if (!rawUser) return false;
+    const localId = getLocalSessionUserId();
+    if (localId) return isLocalUserEmailVerifiedById(localId);
+    if (session?.user) return isSupabaseUserConfirmed(session.user);
+    return false;
+  }, [rawUser, localUser, session, loading]);
+
+  const user = emailVerified ? rawUser : null;
 
   const refreshProfile = useCallback(async () => {
-    const uid = user?.id;
-    if (!uid) {
+    const uid = rawUser?.id;
+    if (!uid || !emailVerified) {
       setProfile(null);
       return;
     }
     setProfile(await getMyProfile(uid));
-  }, [user?.id]);
+  }, [rawUser?.id, emailVerified]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const restored = await restoreSessionKey();
         if (!restored) {
           localLogout();
+        } else if (!isLocalUserEmailVerifiedById(id)) {
+          localLogout();
+          setLocalUser(null);
+          setProfile(null);
         } else {
           const p = await getMyProfile(id);
           if (p) {
@@ -109,11 +129,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (cloud && !cancelled) {
         const { data } = await supabase.auth.getSession();
-        if (data.session?.user && !id) {
-          setSession(data.session);
+        if (data.session?.user && !getLocalSessionUserId()) {
+          if (isSupabaseUserConfirmed(data.session.user)) {
+            setSession(data.session);
+          } else {
+            await supabase.auth.signOut();
+            setSession(null);
+          }
         }
-        const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-          if (s?.user && !getLocalSessionUserId()) setSession(s);
+        const { data: sub } = supabase.auth.onAuthStateChange(async (_e, s) => {
+          if (!s?.user) {
+            setSession(null);
+            return;
+          }
+          if (!isSupabaseUserConfirmed(s.user)) {
+            await supabase.auth.signOut();
+            setSession(null);
+            return;
+          }
+          if (!getLocalSessionUserId()) setSession(s);
         });
         if (!cancelled) setLoading(false);
         return () => sub.subscription.unsubscribe();
@@ -136,6 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const localRes = await localLogin(trimmed, password);
       if (!localRes.error && localRes.userId) {
+        if (!isLocalUserEmailVerifiedById(localRes.userId)) {
+          localLogout();
+          return "E-mail non vérifié. Validez votre compte avant de vous connecter.";
+        }
         const applied = await applyLocalSession(localRes.userId, trimmed);
         setLocalUser(applied.user);
         setProfile(applied.profile);
@@ -143,6 +181,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
           if (!error) {
             const { data } = await supabase.auth.getSession();
+            const u = data.session?.user;
+            if (u && !isSupabaseUserConfirmed(u)) {
+              await supabase.auth.signOut();
+              localLogout();
+              setLocalUser(null);
+              setProfile(null);
+              return "E-mail non vérifié côté serveur. Consultez votre boîte mail.";
+            }
             setSession(data.session);
           }
         } else {
@@ -159,8 +205,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
         if (!error) {
           const { data } = await supabase.auth.getSession();
-          const confirmed = data.session?.user.email_confirmed_at ?? data.session?.user.confirmed_at;
-          if (!confirmed) {
+          const u = data.session?.user;
+          if (!u || !isSupabaseUserConfirmed(u)) {
             await supabase.auth.signOut();
             return "E-mail non vérifié. Consultez votre boîte mail.";
           }
@@ -195,6 +241,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: e instanceof Error ? e.message : "Erreur lors de l'inscription." };
       }
       if (localRes.error) return { ok: false, error: localRes.error };
+
+      localLogout();
+      setLocalUser(null);
+      setProfile(null);
+      setSession(null);
 
       if (cloud) {
         try {
@@ -232,14 +283,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      if (localRes.userId) {
-        const loginRes = await localLogin(trimmed, password);
-        if (!loginRes.error && loginRes.userId) {
-          const applied = await applyLocalSession(loginRes.userId, trimmed);
-          setLocalUser(applied.user);
-          setProfile(applied.profile);
-        }
-      }
       return { ok: true, needsVerification: false };
     },
     [cloud]
@@ -255,8 +298,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (done.error) return done.error;
 
       if (cloud) {
-        await supabase.auth.signInWithPassword({ email: trimmed, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
+        if (error) return mapSupabaseAuthError(error.message);
         const { data } = await supabase.auth.getSession();
+        const u = data.session?.user;
+        if (u && !isSupabaseUserConfirmed(u)) {
+          await supabase.auth.signOut();
+          return "Compte local activé. Confirmez aussi l'e-mail reçu de Talkeo (Supabase).";
+        }
         setSession(data.session);
       }
 
@@ -331,6 +380,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInAsGuest = useCallback(async () => {
     const res = await enterGuestSession();
     if (res.error || !res.userId) return res.error ?? "Accès invité indisponible.";
+    if (!isLocalUserEmailVerifiedById(res.userId)) {
+      localLogout();
+      return "Compte démo indisponible.";
+    }
     const applied = await applyLocalSession(res.userId, "demo@talkeo.app");
     setLocalUser(applied.user);
     setProfile(applied.profile);
@@ -352,10 +405,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      session,
+      session: emailVerified ? session : null,
       user,
       profile,
       loading,
+      emailVerified,
       mode,
       signIn,
       signUp,
@@ -371,6 +425,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       loading,
+      emailVerified,
       mode,
       signIn,
       signUp,
