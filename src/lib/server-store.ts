@@ -50,24 +50,34 @@ export async function serverRegister(
 
   clearVaultMeta();
   invalidateVaultCache();
-  const unlock = await unlockVault(password, { userId, create: true });
-  if (!unlock.ok) return { error: unlock.error ?? "Erreur coffre." };
 
-  const meta = exportVaultMeta();
-  if (!meta) return { error: "Meta coffre manquante." };
+  let meta: ReturnType<typeof exportVaultMeta>;
+  let enc: Awaited<ReturnType<typeof encryptPayload>>;
+  try {
+    const unlock = await unlockVault(password, { userId, create: true });
+    if (!unlock.ok) return { error: unlock.error ?? "Erreur initialisation du coffre." };
+    meta = exportVaultMeta();
+    if (!meta) return { error: "Meta coffre manquante après initialisation." };
+    const profile: Profile = {
+      id: userId,
+      email: norm,
+      display_name: displayName.trim(),
+      handle: norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user",
+      avatar_url: null,
+      public_key: "",
+      org_name: null,
+      created_at: new Date().toISOString(),
+    };
+    const dbPayload = { ...emptyDbShape(), profiles: [profile] };
+    enc = await encryptPayload(dbPayload);
+  } catch (e) {
+    lockVault();
+    clearVaultMeta();
+    return { error: e instanceof Error ? e.message : "Erreur lors de la préparation du compte." };
+  }
 
-  const profile: Profile = {
-    id: userId,
-    email: norm,
-    display_name: displayName.trim(),
-    handle: norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user",
-    avatar_url: null,
-    public_key: "",
-    org_name: null,
-    created_at: new Date().toISOString(),
-  };
-  const db = { ...emptyDbShape(), profiles: [profile] };
-  const enc = await encryptPayload(db);
+  lockVault();
+  clearVaultMeta();
 
   const res = await apiFetch<{
     userId: string;
@@ -84,9 +94,6 @@ export async function serverRegister(
       vault: enc,
     }),
   });
-
-  lockVault();
-  clearVaultMeta();
 
   if (res.error) return { error: res.error };
   return {

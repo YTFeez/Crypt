@@ -253,7 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         localRes = await localRegister(trimmed, password, displayName.trim());
       } catch (e) {
-        return { ok: false, error: e instanceof Error ? e.message : "Erreur lors de l'inscription." };
+        const msg = e instanceof Error ? e.message : "Erreur lors de l'inscription.";
+        return { ok: false, error: msg };
       }
       if (localRes.error) return { ok: false, error: localRes.error };
 

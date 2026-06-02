@@ -21,7 +21,12 @@ export async function apiFetch<T>(
     const t = getApiToken();
     if (t) headers.set("Authorization", `Bearer ${t}`);
   }
-  const res = await fetch(`${getApiUrl()}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${getApiUrl()}${path}`, { ...init, headers });
+  } catch {
+    return { error: "Serveur inaccessible. Vérifiez votre connexion ou réessayez.", status: 0 };
+  }
   let body = {} as { error?: string } & T;
   try {
     body = (await res.json()) as { error?: string } & T;
