@@ -8,9 +8,12 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/crypt/src/server
 EnvironmentFile=/opt/crypt/.env
-ExecStart=/usr/bin/node src/index.js
+ExecStart=/bin/bash -c 'exec $(which node || echo /usr/bin/node) src/index.js'
 Restart=on-failure
 RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=talkeo-api
 
 [Install]
 WantedBy=multi-user.target

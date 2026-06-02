@@ -42,9 +42,11 @@ EOF
 fi
 
 echo "==> nginx (HTTP — SSL via certbot)"
+# Supprime toute config existante pour ce domaine pour éviter les doublons
+rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-enabled/crypt 2>/dev/null || true
+rm -f /etc/nginx/conf.d/crypt.conf 2>/dev/null || true
 sed "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${SRC_DIR}/infra/nginx-http-only.conf" > /etc/nginx/sites-available/crypt
 ln -sf /etc/nginx/sites-available/crypt /etc/nginx/sites-enabled/crypt
-rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 nginx -t
 systemctl enable nginx
 systemctl restart nginx
@@ -55,8 +57,14 @@ bash "${SRC_DIR}/infra/deploy.sh"
 echo "==> Certificat HTTPS (Let's Encrypt)"
 if certbot --nginx -d "${DOMAIN}" --redirect --agree-tos -m "${EMAIL}" --non-interactive; then
   echo "==> Passage à la config nginx HTTPS complète"
+  # Certbot a déjà modifié la config — on remplace proprement sans doublon
   sed "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" "${SRC_DIR}/infra/nginx.conf" > /etc/nginx/sites-available/crypt
   nginx -t && systemctl reload nginx
+  echo "==> Suppression de la config HTTP-only redondante"
+  # Vérifie que seul sites-available/crypt est actif
+  ls /etc/nginx/sites-enabled/ | grep -v crypt | while read f; do
+    rm -f "/etc/nginx/sites-enabled/${f}"
+  done
 else
   echo "WARN: certbot a échoué — le site reste en HTTP. Vérifiez le DNS (A → IP du VPS)."
 fi

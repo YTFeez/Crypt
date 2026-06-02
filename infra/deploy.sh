@@ -5,7 +5,7 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/crypt}"
 SRC_DIR="${SRC_DIR:-${APP_DIR}/src}"
 ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
-WEB_DIST="${APP_DIR}/web-dist}"
+WEB_DIST="${APP_DIR}/web-dist"
 REPO_URL="${REPO_URL:-https://github.com/YTFeez/Crypt.git}"
 
 log() { echo "==> $*"; }
@@ -83,6 +83,12 @@ cd "${SRC_DIR}/server"
 npm ci --prefer-offline --no-audit
 if id www-data >/dev/null 2>&1; then
   chown -R www-data:www-data "${SRC_DIR}/server"
+fi
+# Mettre à jour le chemin node dans le service systemd
+NODE_BIN=$(which node 2>/dev/null || echo "/usr/bin/node")
+if [ -f /etc/systemd/system/talkeo-api.service ]; then
+  sed -i "s|^ExecStart=.*|ExecStart=${NODE_BIN} src/index.js|" /etc/systemd/system/talkeo-api.service
+  systemctl daemon-reload 2>/dev/null || true
 fi
 cd "${SRC_DIR}"
 

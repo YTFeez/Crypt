@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Répare talkeo-api (JWT manquant, permissions data/, test démarrage)
+# Répare talkeo-api : JWT manquant, node introuvable, permissions data/
 # Usage: sudo bash /opt/crypt/src/infra/fix-talkeo-api.sh
 set -euo pipefail
 
@@ -13,73 +13,99 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+echo "==> Vérification de Node.js"
+NODE_BIN=$(which node 2>/dev/null || echo "")
+if [ -z "${NODE_BIN}" ]; then
+  echo "ERREUR: node introuvable. Installez Node.js 20." >&2
+  exit 1
+fi
+echo "node : ${NODE_BIN} ($(node -v))"
+
+echo "==> Vérification et complétion du .env"
 touch "${ENV_FILE}"
 chmod 600 "${ENV_FILE}"
 
-set_env() {
-  local key="$1"
-  local val="$2"
-  if grep -q "^${key}=" "${ENV_FILE}" 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${val}|" "${ENV_FILE}"
-  else
+set_if_missing() {
+  local key="$1" val="$2"
+  if ! grep -q "^${key}=" "${ENV_FILE}" 2>/dev/null; then
     echo "${key}=${val}" >> "${ENV_FILE}"
+    echo "   + ${key}"
   fi
 }
 
-if ! grep -q '^TALKEO_JWT_SECRET=' "${ENV_FILE}" || [ "$(grep '^TALKEO_JWT_SECRET=' "${ENV_FILE}" | cut -d= -f2- | wc -c)" -lt 33 ]; then
-  echo "==> Ajout TALKEO_JWT_SECRET"
-  set_env "TALKEO_JWT_SECRET" "$(openssl rand -hex 32)"
-fi
+JWT_GEN=$(openssl rand -hex 32)
+ADMIN_GEN=$(openssl rand -hex 24)
 
-if ! grep -q '^TALKEO_ADMIN_KEY=' "${ENV_FILE}"; then
-  echo "==> Ajout TALKEO_ADMIN_KEY"
-  set_env "TALKEO_ADMIN_KEY" "$(openssl rand -hex 24)"
-fi
-
-if ! grep -q '^TALKEO_DATABASE_PATH=' "${ENV_FILE}"; then
-  set_env "TALKEO_DATABASE_PATH" "${DATA_DIR}/talkeo.db"
-fi
-
-if ! grep -q '^TALKEO_API_PORT=' "${ENV_FILE}"; then
-  set_env "TALKEO_API_PORT" "8787"
-fi
+set_if_missing "TALKEO_JWT_SECRET" "${JWT_GEN}"
+set_if_missing "TALKEO_ADMIN_KEY" "${ADMIN_GEN}"
+set_if_missing "TALKEO_DATABASE_PATH" "${DATA_DIR}/talkeo.db"
+set_if_missing "TALKEO_API_PORT" "8787"
 
 if ! grep -q '^VITE_API_URL=' "${ENV_FILE}"; then
-  DOMAIN=$(grep -rh 'server_name' /etc/nginx/sites-enabled/ 2>/dev/null | awk '{print $2}' | tr -d ';' | grep -v '^_' | head -1 || echo "talkeo.fr")
-  set_env "VITE_API_URL" "https://${DOMAIN}"
-  echo "==> VITE_API_URL=https://${DOMAIN}"
+  DOMAIN=$(grep -rh 'server_name' /etc/nginx/sites-enabled/ 2>/dev/null \
+    | awk '{print $2}' | tr -d ';' | grep -v '^_$' | grep '\.' | head -1 || echo "")
+  if [ -n "${DOMAIN}" ]; then
+    echo "VITE_API_URL=https://${DOMAIN}" >> "${ENV_FILE}"
+    echo "   + VITE_API_URL=https://${DOMAIN}"
+  else
+    echo "WARN: VITE_API_URL absent — ajoutez-le manuellement dans ${ENV_FILE}"
+  fi
 fi
 
+echo "==> Permissions dossier data/"
 mkdir -p "${DATA_DIR}"
 chown -R www-data:www-data "${DATA_DIR}"
 chmod 750 "${DATA_DIR}"
 
+echo "==> Permissions dossier server/"
 if [ -d "${SRC_DIR}/server" ]; then
-  chown -R www-data:www-data "${SRC_DIR}/server/node_modules" 2>/dev/null || true
-  chown www-data:www-data "${SRC_DIR}/server" 2>/dev/null || true
+  chown -R www-data:www-data "${SRC_DIR}/server"
 fi
 
-echo "==> Test démarrage (www-data, 2 s)"
-set -a
-# shellcheck disable=SC1090
-source "${ENV_FILE}"
-set +a
-if sudo -u www-data bash -c "cd '${SRC_DIR}/server' && timeout 2 node src/index.js" 2>/tmp/talkeo-test.log; then
-  echo "OK — Node démarre"
+echo "==> Mise à jour du fichier service systemd"
+cat > /etc/systemd/system/talkeo-api.service <<EOF
+[Unit]
+Description=Talkeo API (stockage VPS SQLite)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=${SRC_DIR}/server
+EnvironmentFile=${ENV_FILE}
+ExecStart=${NODE_BIN} src/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=talkeo-api
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "==> Test rapide (root, 3s)"
+cd "${SRC_DIR}/server"
+timeout 3 env $(grep -v '^#' "${ENV_FILE}" | grep -v '^$' | xargs) \
+  "${NODE_BIN}" src/index.js 2>/tmp/talkeo-test.log || true
+
+if grep -q "écoute" /tmp/talkeo-test.log 2>/dev/null; then
+  echo "OK — API démarre correctement"
+elif grep -q "ERREUR" /tmp/talkeo-test.log 2>/dev/null; then
+  echo "ERREUR détectée :"
+  cat /tmp/talkeo-test.log
 else
-  if grep -q "Talkeo API écoute" /tmp/talkeo-test.log 2>/dev/null; then
-    echo "OK — API prête"
-  else
-    echo "WARN — voir /tmp/talkeo-test.log"
-    tail -5 /tmp/talkeo-test.log 2>/dev/null || true
-  fi
+  echo "OK (timeout attendu)"
 fi
 
-echo "==> Redémarrage systemd"
+echo "==> Redémarrage talkeo-api"
 systemctl daemon-reload
+systemctl enable talkeo-api.service 2>/dev/null || true
 systemctl restart talkeo-api.service
-sleep 2
-systemctl status talkeo-api.service --no-pager || true
+sleep 3
+systemctl status talkeo-api.service --no-pager -l || true
 
 echo ""
-echo "Si encore en échec : journalctl -u talkeo-api -n 40 --no-pager"
+echo "Test : curl -s http://127.0.0.1:8787/api/health"
+curl -s http://127.0.0.1:8787/api/health || echo "(pas de réponse)"
