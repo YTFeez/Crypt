@@ -23,8 +23,8 @@ type KdfAlg = "argon2id" | "pbkdf2";
 const useSubtle = typeof crypto !== "undefined" && Boolean(crypto.subtle);
 
 type Session =
-  | { mode: "subtle"; key: CryptoKey }
-  | { mode: "noble"; key: Uint8Array };
+  | { mode: "subtle"; key: CryptoKey; material: Uint8Array }
+  | { mode: "noble"; key: Uint8Array; material: Uint8Array };
 
 let session: Session | null = null;
 
@@ -95,15 +95,20 @@ async function deriveMasterKey(
   return derivePbkdf2Legacy(password, salt);
 }
 
-async function deriveSubtleAesKey(master: Uint8Array): Promise<CryptoKey> {
-  // extractable: true — requis pour persistSessionKey (sessionStorage entre rechargements)
-  return crypto.subtle!.importKey("raw", master, "AES-GCM", true, ["encrypt", "decrypt"]);
+async function sessionFromMaterial(material: Uint8Array): Promise<Session> {
+  if (useSubtle) {
+    return {
+      mode: "subtle",
+      material,
+      key: await crypto.subtle!.importKey("raw", material, "AES-GCM", false, ["encrypt", "decrypt"]),
+    };
+  }
+  return { mode: "noble", material, key: material };
 }
 
 async function deriveSession(password: string, salt: Uint8Array, kdf: KdfAlg): Promise<Session> {
-  const master = await deriveMasterKey(password, salt, kdf);
-  if (useSubtle) return { mode: "subtle", key: await deriveSubtleAesKey(master) };
-  return { mode: "noble", key: master };
+  const material = await deriveMasterKey(password, salt, kdf);
+  return sessionFromMaterial(material);
 }
 
 export async function hashPassword(
@@ -166,7 +171,7 @@ export async function unlockVault(
     if (!valid) return { ok: false, error: "Mot de passe incorrect." };
     meta = await upgradeVaultKdf(meta, password);
     session = await deriveSession(password, b64ToU8(meta.salt), "argon2id");
-    await persistSessionKey();
+    persistSessionKey();
     return { ok: true };
   }
   if (!opts?.create || !opts.userId) {
@@ -176,40 +181,26 @@ export async function unlockVault(
   const meta: VaultMeta = { salt, verifier: hash, userId: opts.userId, kdf: "argon2id", v: 4 };
   writeVaultMeta(meta);
   session = await deriveSession(password, b64ToU8(salt), "argon2id");
-  await persistSessionKey();
+  persistSessionKey();
   return { ok: true };
 }
 
-async function persistSessionKey() {
+/** Sauvegarde la clé brute — sans exportKey (évite l'erreur SubtleCrypto) */
+function persistSessionKey() {
   if (!session) return;
-  if (session.mode === "subtle") {
-    const raw = await crypto.subtle!.exportKey("raw", session.key);
-    sessionStorage.setItem(SESSION_KEY_RAM, `s:${bufToB64(raw)}`);
-  } else {
-    sessionStorage.setItem(SESSION_KEY_RAM, `n:${bufToB64(session.key)}`);
-  }
+  sessionStorage.setItem(SESSION_KEY_RAM, `n:${bufToB64(session.material)}`);
 }
 
 export async function restoreSessionKey(): Promise<boolean> {
-  const raw = sessionStorage.getItem(SESSION_KEY_RAM);
-  if (!raw) return false;
+  const stored = sessionStorage.getItem(SESSION_KEY_RAM);
+  if (!stored) return false;
   try {
-    if (raw.startsWith("s:") && useSubtle) {
-      session = {
-        mode: "subtle",
-        key: await crypto.subtle!.importKey("raw", b64ToU8(raw.slice(2)), "AES-GCM", true, [
-          "encrypt",
-          "decrypt",
-        ]),
-      };
-      return true;
-    }
-    if (raw.startsWith("n:")) {
-      session = { mode: "noble", key: b64ToU8(raw.slice(2)) };
-      return true;
-    }
-    return false;
+    if (!stored.startsWith("n:") && !stored.startsWith("s:")) return false;
+    const material = b64ToU8(stored.slice(2));
+    session = await sessionFromMaterial(material);
+    return true;
   } catch {
+    sessionStorage.removeItem(SESSION_KEY_RAM);
     return false;
   }
 }
