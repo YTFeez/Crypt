@@ -96,7 +96,8 @@ async function deriveMasterKey(
 }
 
 async function deriveSubtleAesKey(master: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle!.importKey("raw", master, "AES-GCM", false, ["encrypt", "decrypt"]);
+  // extractable: true — requis pour persistSessionKey (sessionStorage entre rechargements)
+  return crypto.subtle!.importKey("raw", master, "AES-GCM", true, ["encrypt", "decrypt"]);
 }
 
 async function deriveSession(password: string, salt: Uint8Array, kdf: KdfAlg): Promise<Session> {
@@ -196,7 +197,7 @@ export async function restoreSessionKey(): Promise<boolean> {
     if (raw.startsWith("s:") && useSubtle) {
       session = {
         mode: "subtle",
-        key: await crypto.subtle!.importKey("raw", b64ToU8(raw.slice(2)), "AES-GCM", false, [
+        key: await crypto.subtle!.importKey("raw", b64ToU8(raw.slice(2)), "AES-GCM", true, [
           "encrypt",
           "decrypt",
         ]),
