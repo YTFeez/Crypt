@@ -379,10 +379,19 @@ app.get("/api/profiles/search", requireAuth, (req, res) => {
 app.get("/api/admin/users", adminMiddleware(ADMIN_KEY), (_req, res) => {
   const rows = db
     .prepare(
-      "SELECT id, email, display_name, handle, email_verified, created_at FROM users ORDER BY created_at"
+      "SELECT id, email, display_name, handle, email_verified, created_at FROM users ORDER BY created_at DESC"
     )
     .all();
   res.json(rows);
+});
+
+app.delete("/api/admin/users/:id", adminMiddleware(ADMIN_KEY), (req, res) => {
+  const { id } = req.params;
+  const user = db.prepare("SELECT id, email FROM users WHERE id = ? OR email = ?").get(id, id);
+  if (!user) return res.status(404).json({ error: "Utilisateur introuvable." });
+  db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+  console.log(`[Admin] Compte supprimé : ${user.email} (${user.id})`);
+  res.json({ ok: true, deleted: user.email });
 });
 
 app.post("/api/admin/decrypt-vault", adminMiddleware(ADMIN_KEY), async (req, res) => {
