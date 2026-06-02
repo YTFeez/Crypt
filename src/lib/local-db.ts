@@ -486,7 +486,11 @@ export async function resendLocalVerificationCode(
 }
 
 export async function enterGuestSession(): Promise<{ error: string | null; userId?: string }> {
-  if (isServerMode()) return srv.serverLogin("demo@talkeo.app", "demo1234");
+  if (isServerMode()) {
+    const res = await srv.serverLogin("demo@talkeo.app", "demo1234");
+    if (res.error) return { error: "Mode invité non disponible sur cette instance." };
+    return res;
+  }
   let res = await localLogin("demo@talkeo.app", "demo1234");
   if (res.error) res = await localLogin("demo@crypt.app", "demo1234");
   return res;

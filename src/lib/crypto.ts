@@ -54,7 +54,11 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 function readVaultMetaRaw(): string | null {
-  return localStorage.getItem(VAULT_META_KEY) ?? localStorage.getItem(VAULT_META_LEGACY);
+  try {
+    return localStorage.getItem(VAULT_META_KEY) ?? localStorage.getItem(VAULT_META_LEGACY);
+  } catch {
+    return null;
+  }
 }
 
 function writeVaultMeta(meta: VaultMeta) {
@@ -162,7 +166,14 @@ export async function unlockVault(
 ): Promise<{ ok: boolean; error?: string }> {
   const raw = readVaultMetaRaw();
   if (raw) {
-    let meta = JSON.parse(raw) as VaultMeta;
+    let meta: VaultMeta;
+    try {
+      meta = JSON.parse(raw) as VaultMeta;
+    } catch {
+      localStorage.removeItem(VAULT_META_KEY);
+      localStorage.removeItem(VAULT_META_LEGACY);
+      return { ok: false, error: "Coffre corrompu — réinitialisation. Reconnectez-vous." };
+    }
     if (opts?.userId && meta.userId !== opts.userId) {
       return { ok: false, error: "Session d'un autre compte. Déconnectez-vous d'abord." };
     }

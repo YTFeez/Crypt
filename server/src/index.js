@@ -1,6 +1,5 @@
 import express from "express";
 import helmet from "helmet";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDatabase, seedDemoUser } from "./db.js";
@@ -44,6 +43,7 @@ app.use(
 );
 app.use(express.json({ limit: "12mb" }));
 
+/* ── Rate limiters ── */
 const authIpLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 40,
@@ -54,6 +54,18 @@ const authEmailLimit = rateLimit({
   max: 12,
   keyFn: (req) => `email:${normalizeEmail(req.body?.email)}`,
 });
+const verifyLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyFn: (req) => `verify:${clientIp(req)}`,
+});
+
+/* Valide un UUID v4 provenant du client */
+function isValidUUID(s) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(s ?? "")
+  );
+}
 
 function userPublic(row) {
   return {
@@ -62,7 +74,7 @@ function userPublic(row) {
     display_name: row.display_name,
     handle: row.handle,
     email_verified: !!row.email_verified,
-    org_name: row.org_name,
+    org_name: row.org_name ?? null,
     phone: row.phone ?? null,
     created_at: row.created_at,
     vaultMeta: row.vault_salt
@@ -87,13 +99,17 @@ function uniqueHandle(base) {
   return handle;
 }
 
+/* ── Health ── */
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "talkeo-api", db: DB_PATH });
 });
 
+/* ── Inscription ── */
 app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => {
   try {
-    const { email, password, displayName, vaultMeta, vault } = req.body ?? {};
+    const { email, password, displayName, handle: clientHandle, vaultMeta, vault } =
+      req.body ?? {};
+
     const norm = normalizeEmail(email);
     if (!isValidEmail(norm)) {
       return res.status(400).json({ error: "E-mail invalide." });
@@ -107,14 +123,26 @@ app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => 
       return res.status(400).json({ error: "Coffre chiffré requis." });
     }
 
-    const existing = db.prepare("SELECT id, email_verified FROM users WHERE email = ?").get(norm);
+    const existing = db
+      .prepare("SELECT id, email_verified FROM users WHERE email = ?")
+      .get(norm);
+
     if (existing?.email_verified) {
       return res.status(409).json({ error: "Cet e-mail est déjà utilisé." });
     }
 
     const cred = await hashPassword(String(password));
-    const id = existing?.id ?? crypto.randomUUID();
-    const handle = uniqueHandle(norm.split("@")[0]);
+
+    /* Utilise l'UUID du client pour garantir la cohérence coffre ↔ profil */
+    const id = existing?.id ?? (isValidUUID(vaultMeta.userId) ? vaultMeta.userId : crypto.randomUUID());
+
+    /* Handle : utilise celui du client si fourni, sinon dérive de l'e-mail */
+    const baseHandle =
+      String(clientHandle ?? "")
+        .replace(/[^a-z0-9_]/g, "")
+        .slice(0, 32) || norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user";
+    const handle = existing ? existing.handle ?? uniqueHandle(baseHandle) : uniqueHandle(baseHandle);
+
     const now = new Date().toISOString();
     const code = generateVerificationCode();
     const codeHash = hashCode(code);
@@ -122,13 +150,12 @@ app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => 
 
     if (existing) {
       db.prepare(
-        `UPDATE users SET password_hash=?, password_salt=?, display_name=?, handle=?,
+        `UPDATE users SET password_hash=?, password_salt=?, display_name=?,
          vault_salt=?, vault_verifier=?, vault_kdf=?, vault_v=?, email_verified=0 WHERE id=?`
       ).run(
         cred.hash,
         cred.salt,
         displayName.trim(),
-        handle,
         vaultMeta.salt,
         vaultMeta.verifier,
         vaultMeta.kdf ?? "argon2id",
@@ -172,18 +199,22 @@ app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => 
       purpose: "verification",
     });
     if (!mail.sent) console.info(`[Talkeo] Code vérif ${norm}: ${code}`);
+
     res.status(201).json({
       userId: id,
       email: norm,
       needsVerification: true,
-      devCode: mail.devCode ?? (process.env.NODE_ENV !== "production" ? code : undefined),
+      devCode:
+        mail.devCode ??
+        (process.env.NODE_ENV !== "production" ? code : undefined),
     });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur inscription." });
+    console.error("[register]", e);
+    res.status(500).json({ error: "Erreur lors de l'inscription. Réessayez." });
   }
 });
 
+/* ── Connexion ── */
 app.post("/api/auth/login", authIpLimit, authEmailLimit, async (req, res) => {
   try {
     const norm = normalizeEmail(req.body?.email);
@@ -192,52 +223,71 @@ app.post("/api/auth/login", authIpLimit, authEmailLimit, async (req, res) => {
     if (!user) return res.status(401).json({ error: "E-mail ou mot de passe incorrect." });
 
     const valid = await verifyPassword(password, user.password_salt, user.password_hash);
-    if (!valid) return res.status(401).json({ error: "E-mail ou mot de passe incorrect." });
+    if (!valid)
+      return res.status(401).json({ error: "E-mail ou mot de passe incorrect." });
+
     if (!user.email_verified) {
-      return res.status(403).json({ error: "E-mail non vérifié.", code: "EMAIL_NOT_VERIFIED" });
+      return res
+        .status(403)
+        .json({ error: "E-mail non vérifié.", code: "EMAIL_NOT_VERIFIED" });
     }
 
     const token = await auth.signToken(user.id, user.email);
     res.json({ token, user: userPublic(user) });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur connexion." });
+    console.error("[login]", e);
+    res.status(500).json({ error: "Erreur lors de la connexion. Réessayez." });
   }
 });
 
-app.post("/api/auth/verify-email", async (req, res) => {
+/* ── Vérification e-mail ── */
+app.post("/api/auth/verify-email", verifyLimit, async (req, res) => {
   try {
     const norm = String(req.body?.email ?? "")
       .trim()
       .toLowerCase();
     const code = String(req.body?.code ?? "").trim();
-    const row = db.prepare("SELECT * FROM email_verifications WHERE email = ?").get(norm);
+
+    if (!norm || !code) {
+      return res.status(400).json({ error: "E-mail et code requis." });
+    }
+
+    const row = db
+      .prepare("SELECT * FROM email_verifications WHERE email = ?")
+      .get(norm);
     if (!row) return res.status(400).json({ error: "Aucune vérification en cours." });
+
     if (Date.now() > row.expires_at) {
       db.prepare("DELETE FROM email_verifications WHERE email = ?").run(norm);
-      return res.status(400).json({ error: "Code expiré." });
+      return res
+        .status(400)
+        .json({ error: "Code expiré (15 min). Demandez un nouveau code." });
     }
+
     const check = hashCode(code);
     if (check !== row.code_hash) {
-      return res.status(400).json({ error: "Code incorrect." });
+      return res.status(400).json({ error: "Code incorrect. Vérifiez les 6 chiffres reçus." });
     }
+
     db.prepare("UPDATE users SET email_verified = 1 WHERE id = ?").run(row.user_id);
     db.prepare("DELETE FROM email_verifications WHERE email = ?").run(norm);
     res.json({ ok: true, userId: row.user_id });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Erreur vérification." });
+    console.error("[verify-email]", e);
+    res.status(500).json({ error: "Erreur lors de la vérification." });
   }
 });
 
-app.post("/api/auth/resend-code", async (req, res) => {
+/* ── Renvoi du code ── */
+app.post("/api/auth/resend-code", authIpLimit, async (req, res) => {
   try {
     const norm = String(req.body?.email ?? "")
       .trim()
       .toLowerCase();
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(norm);
     if (!user) return res.status(404).json({ error: "Compte introuvable." });
-    if (user.email_verified) return res.status(400).json({ error: "E-mail déjà vérifié." });
+    if (user.email_verified)
+      return res.status(400).json({ error: "E-mail déjà vérifié." });
 
     const code = generateVerificationCode();
     db.prepare(
@@ -254,10 +304,13 @@ app.post("/api/auth/resend-code", async (req, res) => {
     if (!mail.sent) console.info(`[Talkeo] Code renvoyé ${norm}: ${code}`);
     res.json({
       ok: true,
-      devCode: mail.devCode ?? (process.env.NODE_ENV !== "production" ? code : undefined),
+      devCode:
+        mail.devCode ??
+        (process.env.NODE_ENV !== "production" ? code : undefined),
     });
   } catch (e) {
-    res.status(500).json({ error: "Erreur envoi." });
+    console.error("[resend-code]", e);
+    res.status(500).json({ error: "Erreur lors de l'envoi." });
   }
 });
 
@@ -280,7 +333,9 @@ app.put("/api/auth/vault-meta", requireAuth, (req, res) => {
 });
 
 app.get("/api/vault", requireAuth, (req, res) => {
-  const row = db.prepare("SELECT data, iv, updated_at FROM vaults WHERE user_id = ?").get(req.userId);
+  const row = db
+    .prepare("SELECT data, iv, updated_at FROM vaults WHERE user_id = ?")
+    .get(req.userId);
   if (!row) return res.json({ data: "{}", iv: "" });
   res.json(row);
 });
@@ -324,7 +379,9 @@ app.get("/api/profiles/search", requireAuth, (req, res) => {
 
 app.get("/api/admin/users", adminMiddleware(ADMIN_KEY), (_req, res) => {
   const rows = db
-    .prepare("SELECT id, email, display_name, handle, email_verified, created_at FROM users ORDER BY created_at")
+    .prepare(
+      "SELECT id, email, display_name, handle, email_verified, created_at FROM users ORDER BY created_at"
+    )
     .all();
   res.json(rows);
 });
@@ -341,7 +398,9 @@ app.post("/api/admin/decrypt-vault", adminMiddleware(ADMIN_KEY), async (req, res
     const valid = await verifyPassword(String(password), user.password_salt, user.password_hash);
     if (!valid) return res.status(401).json({ error: "Mot de passe incorrect." });
 
-    const vault = db.prepare("SELECT data, iv FROM vaults WHERE user_id = ?").get(user.id);
+    const vault = db
+      .prepare("SELECT data, iv FROM vaults WHERE user_id = ?")
+      .get(user.id);
     if (!vault) return res.status(404).json({ error: "Coffre absent." });
 
     if (!vault.iv) {
@@ -351,15 +410,23 @@ app.post("/api/admin/decrypt-vault", adminMiddleware(ADMIN_KEY), async (req, res
       return res.status(400).json({ error: "Meta coffre absente." });
     }
 
-    const plain = await decryptVaultPayload(String(password), { salt: user.vault_salt }, vault.data, vault.iv);
+    const plain = await decryptVaultPayload(
+      String(password),
+      { salt: user.vault_salt },
+      vault.data,
+      vault.iv
+    );
     res.json({ plaintext: JSON.parse(plain) });
   } catch (e) {
-    console.error(e);
-    res.status(400).json({ error: "Déchiffrement impossible (mot de passe ou données corrompues)." });
+    console.error("[decrypt-vault]", e);
+    res
+      .status(400)
+      .json({ error: "Déchiffrement impossible (mot de passe ou données corrompues)." });
   }
 });
 
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`Talkeo API écoute sur 127.0.0.1:${PORT}`);
   console.log(`Base : ${DB_PATH}`);
+  console.log(`NODE_ENV : ${process.env.NODE_ENV ?? "development"}`);
 });

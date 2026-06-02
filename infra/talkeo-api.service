@@ -8,6 +8,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/crypt/src/server
 EnvironmentFile=/opt/crypt/.env
+Environment=NODE_ENV=production
 ExecStart=/bin/bash -c 'exec $(which node || echo /usr/bin/node) src/index.js'
 Restart=on-failure
 RestartSec=5

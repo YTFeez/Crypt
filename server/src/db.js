@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   vault_v INTEGER DEFAULT 4,
   org_name TEXT,
   avatar_url TEXT,
+  phone TEXT,
   public_key TEXT DEFAULT '',
   created_at TEXT NOT NULL
 );
@@ -56,48 +57,70 @@ export function openDatabase(dbPath) {
 }
 
 export async function seedDemoUser(db) {
-  const row = db.prepare("SELECT id FROM users WHERE email = ?").get("demo@talkeo.app");
-  if (row) return;
+  const row = db
+    .prepare("SELECT id, vault_salt FROM users WHERE email = ?")
+    .get("demo@talkeo.app");
 
-  const id = crypto.randomUUID();
-  const cred = await hashPassword("demo1234");
   const now = new Date().toISOString();
+  const demoId = row?.id ?? crypto.randomUUID();
 
-  db.prepare(
-    `INSERT INTO users (id, email, password_hash, password_salt, display_name, handle, email_verified, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 1, ?)`
-  ).run(id, "demo@talkeo.app", cred.hash, cred.salt, "Alex Demo", "alex", now);
+  if (!row) {
+    /* Première installation : créer le compte démo complet */
+    const cred = await hashPassword("demo1234");
+    const vaultCred = await hashPassword("demo1234");
 
-  const emptyVault = JSON.stringify({
-    profiles: [
-      {
-        id,
-        email: "demo@talkeo.app",
-        display_name: "Alex Demo",
-        handle: "alex",
-        avatar_url: null,
-        public_key: "",
-        org_name: "Talkeo",
-        created_at: now,
-      },
-    ],
-    friendships: [],
-    conversations: [],
-    conversation_members: [],
-    messages: [],
-    folders: [],
-    folder_members: [],
-    folder_items: [],
-    boards: [],
-    board_members: [],
-    designs: [],
-    design_members: [],
-    calls: [],
-  });
+    db.prepare(
+      `INSERT INTO users (id, email, password_hash, password_salt, display_name, handle,
+       email_verified, vault_salt, vault_verifier, vault_kdf, vault_v, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 'argon2id', 4, ?)`
+    ).run(
+      demoId,
+      "demo@talkeo.app",
+      cred.hash,
+      cred.salt,
+      "Alex Demo",
+      "alex",
+      vaultCred.salt,
+      vaultCred.hash,
+      now
+    );
 
-  db.prepare(`INSERT INTO vaults (user_id, data, iv, updated_at) VALUES (?, ?, '', ?)`).run(
-    id,
-    emptyVault,
-    now
-  );
+    const demoVault = JSON.stringify({
+      profiles: [
+        {
+          id: demoId,
+          email: "demo@talkeo.app",
+          display_name: "Alex Demo",
+          handle: "alex",
+          avatar_url: null,
+          public_key: "",
+          org_name: "Talkeo",
+          created_at: now,
+        },
+      ],
+      friendships: [],
+      conversations: [],
+      conversation_members: [],
+      messages: [],
+      folders: [],
+      folder_members: [],
+      folder_items: [],
+      boards: [],
+      board_members: [],
+      designs: [],
+      design_members: [],
+      calls: [],
+    });
+
+    db.prepare(
+      `INSERT INTO vaults (user_id, data, iv, updated_at) VALUES (?, ?, '', ?)`
+    ).run(demoId, demoVault, now);
+  } else if (!row.vault_salt) {
+    /* Migration : compte démo existant sans vault_salt → on lui en ajoute un */
+    const vaultCred = await hashPassword("demo1234");
+    db.prepare(
+      `UPDATE users SET vault_salt=?, vault_verifier=?, vault_kdf='argon2id', vault_v=4 WHERE id=?`
+    ).run(vaultCred.salt, vaultCred.hash, demoId);
+    console.log("[Talkeo] Compte démo migré avec vault_salt.");
+  }
 }

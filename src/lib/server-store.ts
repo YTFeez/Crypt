@@ -47,6 +47,7 @@ export async function serverRegister(
 ): Promise<{ error: string | null; userId?: string; needsVerification?: boolean; devCode?: string }> {
   const norm = email.trim().toLowerCase();
   const userId = randomUuid();
+  const handle = norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user";
 
   clearVaultMeta();
   invalidateVaultCache();
@@ -62,7 +63,7 @@ export async function serverRegister(
       id: userId,
       email: norm,
       display_name: displayName.trim(),
-      handle: norm.split("@")[0].replace(/[^a-z0-9_]/g, "") || "user",
+      handle,
       avatar_url: null,
       public_key: "",
       org_name: null,
@@ -90,6 +91,7 @@ export async function serverRegister(
       email: norm,
       password,
       displayName: displayName.trim(),
+      handle,
       vaultMeta: meta,
       vault: enc,
     }),
