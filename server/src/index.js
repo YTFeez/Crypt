@@ -204,9 +204,8 @@ app.post("/api/auth/register", authIpLimit, authEmailLimit, async (req, res) => 
       userId: id,
       email: norm,
       needsVerification: true,
-      devCode:
-        mail.devCode ??
-        (process.env.NODE_ENV !== "production" ? code : undefined),
+      /* devCode est renvoyé si SMTP non configuré (mail.devCode défini) ou hors prod */
+      devCode: mail.devCode ?? (process.env.NODE_ENV !== "production" ? code : undefined),
     });
   } catch (e) {
     console.error("[register]", e);

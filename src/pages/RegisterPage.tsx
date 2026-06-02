@@ -10,6 +10,7 @@ export function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -20,16 +21,19 @@ export function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await signUp(email, password, displayName);
-      if (!result.ok) setError(result.error);
-      else if (result.needsVerification) {
+      const result = await signUp(email.trim(), password, displayName.trim());
+      if (!result.ok) {
+        setError(result.error ?? "Erreur lors de l'inscription.");
+      } else if (result.needsVerification) {
         navigate("/verification-email", {
           replace: true,
           state: { email: result.email, devCode: result.devCode },
         });
-      } else navigate("/app", { replace: true });
-    } catch {
-      setError("Erreur lors de l'inscription.");
+      } else {
+        navigate("/app", { replace: true });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inattendue. Réessayez.");
     } finally {
       setLoading(false);
     }
@@ -37,7 +41,7 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      badge="Inscription entreprise"
+      badge="Inscription"
       brandTitle="Rejoignez votre équipe sur Talkeo"
       brandDescription="Créez un compte sécurisé. L'accès à l'application est ouvert uniquement après validation de votre adresse e-mail."
       title="Créer un compte"
@@ -49,52 +53,71 @@ export function RegisterPage() {
       }
     >
       {error ? <div className="alert alert-error">{error}</div> : null}
+
       <form onSubmit={onSubmit} className="auth-form">
         <div className="field">
-          <label htmlFor="name">Nom complet</label>
+          <label htmlFor="reg-name">Nom complet</label>
           <input
-            id="name"
+            id="reg-name"
             required
+            autoComplete="name"
+            placeholder="Jean Dupont"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Jean Dupont"
-            autoComplete="name"
           />
         </div>
+
         <div className="field">
-          <label htmlFor="email">E-mail professionnel</label>
+          <label htmlFor="reg-email">Adresse e-mail</label>
           <input
-            id="email"
+            id="reg-email"
             type="email"
             required
+            autoComplete="email"
+            placeholder="vous@entreprise.fr"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="vous@entreprise.fr"
-            autoComplete="email"
           />
         </div>
+
         <div className="field">
-          <label htmlFor="password">Mot de passe</label>
-          <input
-            id="password"
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="8 caractères, lettre + chiffre"
-            autoComplete="new-password"
-          />
+          <label htmlFor="reg-password">Mot de passe</label>
+          <div className="input-wrap">
+            <input
+              id="reg-password"
+              type={showPwd ? "text" : "password"}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="8 caractères minimum, lettre + chiffre"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              className="input-eye"
+              tabIndex={-1}
+              onClick={() => setShowPwd((v) => !v)}
+              aria-label={showPwd ? "Masquer" : "Afficher"}
+            >
+              {showPwd ? "🙈" : "👁"}
+            </button>
+          </div>
         </div>
+
         <p className="auth-legal">
-          En continuant, vous confirmez disposer d&apos;une adresse e-mail professionnelle valide. Un code de
-          vérification vous sera envoyé — l&apos;application reste inaccessible tant que l&apos;e-mail n&apos;est pas
-          confirmé.
+          Un code de vérification vous sera envoyé — l&apos;accès reste bloqué tant que
+          l&apos;e-mail n&apos;est pas confirmé.
         </p>
-        <button type="submit" className={`btn btn-primary btn-block${loading ? " is-loading" : ""}`} disabled={loading}>
+
+        <button
+          type="submit"
+          className={`btn btn-primary btn-block${loading ? " is-loading" : ""}`}
+          disabled={loading}
+        >
           <span className="btn-loading-inner">
             {loading ? <LoadingSpinner size="sm" /> : null}
-            {loading ? "Création…" : "Continuer"}
+            {loading ? "Création du compte…" : "Continuer →"}
           </span>
         </button>
       </form>

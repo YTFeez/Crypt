@@ -92,21 +92,32 @@ export async function sendVerificationCodeMail({ to, code, displayName = "", pur
   const transport = getTransporter();
 
   if (!transport) {
-    console.info(`[Talkeo mail] SMTP non configuré — code pour ${norm}: ${code}`);
+    /* Pas de SMTP — le code est toujours visible dans les logs pour que l'admin puisse le transmettre */
+    console.info(`[Talkeo mail] SMTP non configuré. Code vérification ${norm} : ${code}`);
     return { sent: false, devCode: code };
   }
 
-  await transport.sendMail({
-    from,
-    to: norm,
-    replyTo: process.env.TALKEO_MAIL_REPLY_TO ?? DEFAULT_FROM,
-    subject,
-    text,
-    html,
-  });
-
-  console.info(`[Talkeo mail] Code envoyé à ${norm} depuis ${from}`);
-  return { sent: true };
+  try {
+    await transport.sendMail({
+      from,
+      to: norm,
+      replyTo: process.env.TALKEO_MAIL_REPLY_TO ?? DEFAULT_FROM,
+      subject,
+      text,
+      html,
+    });
+    console.info(`[Talkeo mail] Code envoyé à ${norm} depuis ${from}`);
+    return { sent: true };
+  } catch (err) {
+    /* Réinitialise le transporter (connexion cassée) */
+    transporter = null;
+    console.error(`[Talkeo mail] Échec SMTP pour ${norm}:`, err.message ?? err);
+    /* L'inscription continue — le code est loggué et renvoyé en dev */
+    return {
+      sent: false,
+      devCode: process.env.NODE_ENV !== "production" ? code : undefined,
+    };
+  }
 }
 
 export function isMailConfigured() {
