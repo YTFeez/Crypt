@@ -111,11 +111,15 @@ export async function sendVerificationCodeMail({ to, code, displayName = "", pur
   } catch (err) {
     /* Réinitialise le transporter (connexion cassée) */
     transporter = null;
-    console.error(`[Talkeo mail] Échec SMTP pour ${norm}:`, err.message ?? err);
-    /* L'inscription continue — le code est loggué et renvoyé en dev */
+    /* Le code est TOUJOURS loggué pour que l'admin puisse le récupérer */
+    console.error(
+      `[Talkeo mail] ⚠ Échec SMTP (${(err?.message ?? err)}). Code pour ${norm} : ${code}`
+    );
+    /* L'inscription continue sans bloquer l'utilisateur */
     return {
       sent: false,
-      devCode: process.env.NODE_ENV !== "production" ? code : undefined,
+      /* devCode renvoyé au client = visible dans la page de vérification */
+      devCode: code,
     };
   }
 }

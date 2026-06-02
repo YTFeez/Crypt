@@ -6,9 +6,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  check-secrets:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    outputs:
+      has-vps: ${{ steps.check.outputs.has-vps }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "$VPS_HOST" ]; then
+            echo "has-vps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-vps=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets VPS_HOST / VPS_USER / VPS_SSH_KEY non configurés — déploiement SSH ignoré."
+          fi
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+
+  deploy:
+    needs: check-secrets
+    if: needs.check-secrets.outputs.has-vps == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Déployer sur le VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -16,6 +34,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          timeout: 60s
+          command_timeout: 18m
           script_stop: true
           script: |
             set -euo pipefail
@@ -25,4 +46,8 @@ jobs:
               mkdir -p "${APP_DIR}"
               git clone https://github.com/YTFeez/Crypt.git "${SRC_DIR}"
             fi
+            cd "${SRC_DIR}"
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
             bash "${SRC_DIR}/infra/deploy.sh"

@@ -18,7 +18,9 @@ export function VerifyEmailPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(
-    state.devCode ? `Mode développement — code : ${state.devCode}` : null
+    state.devCode
+      ? `Code de vérification (SMTP non configuré) : ${state.devCode}`
+      : null
   );
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
