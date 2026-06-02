@@ -15,6 +15,20 @@ import {
 import { isServerMode } from "../lib/server-mode";
 import { apiFetch } from "../lib/server-api";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { IconSun, IconMoon } from "../components/Icons";
+
+function getStoredTheme(): "light" | "dark" {
+  return (document.documentElement.dataset.theme as "light" | "dark") ?? "light";
+}
+
+function applyTheme(theme: "light" | "dark") {
+  if (theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  localStorage.setItem("talkeo-theme", theme);
+}
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -24,6 +38,7 @@ export function SettingsPage() {
   const [orgName, setOrgName] = useState(profile?.org_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? getStoredPhone(user?.id ?? "") ?? "");
   const [profileSaved, setProfileSaved] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">(getStoredTheme);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -159,6 +174,12 @@ export function SettingsPage() {
     navigate("/connexion", { replace: true });
   }
 
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    setTheme(next);
+  }
+
   return (
     <div className="page-inner">
       <header className="page-header">
@@ -167,6 +188,35 @@ export function SettingsPage() {
       </header>
 
       <div className="settings-layout">
+
+        <div className="panel">
+          <div className="panel-header"><strong>Apparence</strong></div>
+          <div className="panel-body stack">
+            <p className="settings-hint">
+              Choisissez le thème d'affichage de l'interface. La préférence est enregistrée localement.
+            </p>
+            <div className="row" style={{ gap: "0.75rem" }}>
+              <button
+                type="button"
+                className={`btn ${theme === "light" ? "btn-primary" : "btn-secondary"}`}
+                style={{ gap: "0.5rem" }}
+                onClick={() => { applyTheme("light"); setTheme("light"); }}
+              >
+                <IconSun size={16} />
+                Clair
+              </button>
+              <button
+                type="button"
+                className={`btn ${theme === "dark" ? "btn-primary" : "btn-secondary"}`}
+                style={{ gap: "0.5rem" }}
+                onClick={toggleTheme}
+              >
+                <IconMoon size={16} />
+                Sombre
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="panel">
           <div className="panel-header"><strong>Mon profil</strong></div>
           <form className="panel-body stack" onSubmit={onProfileSubmit}>

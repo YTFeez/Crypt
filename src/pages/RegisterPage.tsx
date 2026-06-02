@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { AuthLayout } from "../components/AuthLayout";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { IconEye, IconEyeOff } from "../components/Icons";
 
 export function RegisterPage() {
   const { signUp, user } = useAuth();
@@ -100,7 +101,7 @@ export function RegisterPage() {
               onClick={() => setShowPwd((v) => !v)}
               aria-label={showPwd ? "Masquer" : "Afficher"}
             >
-              {showPwd ? "🙈" : "👁"}
+              {showPwd ? <IconEyeOff size={16} /> : <IconEye size={16} />}
             </button>
           </div>
         </div>

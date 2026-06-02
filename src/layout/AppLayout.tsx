@@ -4,23 +4,26 @@ import { Logo } from "../components/Logo";
 import { ParticleNetwork } from "../components/ParticleNetwork";
 import {
   IconMessage,
+  IconUser,
   IconUsers,
   IconPhone,
   IconFolder,
-  IconBoard,
+  IconArchive,
+  IconPalette,
   IconSettings,
   IconHome,
   IconSearch,
+  IconLogOut,
 } from "../components/Icons";
 
 const nav = [
   { to: "/app/messages", label: "Messages", Icon: IconMessage },
-  { to: "/app/amis", label: "Contacts", Icon: IconUsers },
+  { to: "/app/amis", label: "Contacts", Icon: IconUser },
   { to: "/app/groupes", label: "Groupes", Icon: IconUsers },
   { to: "/app/appels", label: "Appels", Icon: IconPhone },
   { to: "/app/dossiers", label: "Dossiers", Icon: IconFolder },
-  { to: "/app/archives", label: "Archives", Icon: IconFolder },
-  { to: "/app/studio", label: "Studio", Icon: IconBoard },
+  { to: "/app/archives", label: "Archives", Icon: IconArchive },
+  { to: "/app/studio", label: "Studio", Icon: IconPalette },
 ] as const;
 
 export function AppLayout() {
@@ -31,7 +34,7 @@ export function AppLayout() {
     <div className="app-shell">
       <ParticleNetwork variant="light" />
       <header className="app-topbar">
-        <Link to="/app" className="logo-wordmark">
+        <Link to="/app" className="logo-wordmark" style={{ marginRight: "auto" }}>
           <Logo size={44} />
           <span className="logo-wordmark-text">Talkeo</span>
         </Link>
@@ -40,16 +43,23 @@ export function AppLayout() {
           <input type="search" placeholder="Rechercher…" aria-label="Rechercher" />
         </div>
         <NavLink to="/app/parametres" className="topbar-user" title="Paramètres">
-          <span className="avatar sm">{initial}</span>
+          <div className="avatar-wrap">
+            <span className="avatar sm">{initial}</span>
+            <span className="status-dot online" aria-label="En ligne" />
+          </div>
           <span className="topbar-user-name">{profile?.display_name?.split(" ")[0]}</span>
         </NavLink>
       </header>
 
       <div className="app-body">
-        <nav className="nav-rail" aria-label="Navigation">
+        <nav className="nav-rail" aria-label="Navigation principale">
           <NavLink to="/" className="rail-link" title="Accueil">
-            <IconHome size={22} />
+            <IconHome size={20} />
+            <span className="rail-label">Accueil</span>
           </NavLink>
+
+          <div className="rail-divider" />
+
           {nav.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
@@ -57,15 +67,26 @@ export function AppLayout() {
               className={({ isActive }) => `rail-link${isActive ? " active" : ""}`}
               title={label}
             >
-              <Icon size={22} />
+              <Icon size={20} />
+              <span className="rail-label">{label}</span>
             </NavLink>
           ))}
+
           <div className="rail-spacer" />
+
           <NavLink to="/app/parametres" className="rail-link" title="Paramètres">
-            <IconSettings size={22} />
+            <IconSettings size={20} />
+            <span className="rail-label">Config</span>
           </NavLink>
-          <button type="button" className="rail-link" title="Déconnexion" onClick={() => void signOut()}>
-            <span style={{ fontSize: "1.1rem" }}>⎋</span>
+
+          <button
+            type="button"
+            className="rail-link rail-link--logout"
+            title="Déconnexion"
+            onClick={() => void signOut()}
+          >
+            <IconLogOut size={20} />
+            <span className="rail-label">Quitter</span>
           </button>
         </nav>
 

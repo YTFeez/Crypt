@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LogoWordmark } from "../components/Logo";
-import { IconLock, IconMessage, IconUsers, IconPhone, IconFolder, IconBoard } from "../components/Icons";
+import {
+  IconLock,
+  IconMessage,
+  IconUsers,
+  IconPhone,
+  IconFolder,
+  IconBoard,
+  IconShield,
+} from "../components/Icons";
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -62,10 +70,9 @@ export function LandingPage() {
           </Link>
           {!user ? (
             <button type="button" className="btn btn-secondary" disabled={guestLoading} onClick={() => void tryDemo()}>
-              {guestLoading ? "Chargement…" : "Explorer"}
+              {guestLoading ? "Chargement…" : "Explorer la démo"}
             </button>
           ) : null}
-          <Link to="/connexion" className="btn btn-secondary">Se connecter</Link>
         </div>
       </section>
 
@@ -112,58 +119,89 @@ export function LandingPage() {
           <h3>Messagerie instantanée</h3>
           <p>
             Conversations directes et groupes, pièces jointes, messages vocaux et notifications
-            en temps réel.
+            en temps réel. Chiffrement de bout en bout sur chaque échange.
           </p>
         </article>
-        <article className="bento-card span-4">
+        <article className="bento-card span-4" id="securite">
           <div className="bento-icon"><IconLock size={24} /></div>
-          <h3 id="securite">Sécurité renforcée</h3>
-          <p>Messages et fichiers protégés. Seuls les membres autorisés y accèdent.</p>
+          <h3>Sécurité renforcée</h3>
+          <p>Coffre chiffré AES-256. Seuls les membres autorisés peuvent lire vos données.</p>
         </article>
         <article className="bento-card span-4">
           <div className="bento-icon"><IconUsers size={24} /></div>
-          <h3>Contacts & groupes</h3>
-          <p>Réseau d'équipe, demandes d'ami et espaces départementaux.</p>
+          <h3>Contacts et groupes</h3>
+          <p>Réseau d'équipe, demandes de contact et espaces départementaux dédiés.</p>
         </article>
         <article className="bento-card span-4">
           <div className="bento-icon"><IconPhone size={24} /></div>
-          <h3>Appels HD</h3>
-          <p>Audio et visio intégrés pour vos réunions quotidiennes.</p>
+          <h3>Appels intégrés</h3>
+          <p>Audio et visioconférence HD pour vos réunions quotidiennes, sans application tierce.</p>
         </article>
         <article className="bento-card span-4">
           <div className="bento-icon"><IconFolder size={24} /></div>
           <h3>Dossiers partagés</h3>
-          <p>Espaces personnels et dossiers communs avec droits granulaires.</p>
+          <p>Espaces personnels et dossiers communs avec droits d'accès granulaires par membre.</p>
         </article>
         <article className="bento-card span-6">
           <div className="bento-icon"><IconBoard size={24} /></div>
           <h3>Studio de création</h3>
-          <p>Affiches, posts réseaux sociaux et présentations — intégré à Talkeo.</p>
+          <p>Affiches, posts réseaux sociaux et présentations — entièrement intégré à Talkeo.</p>
         </article>
         <article className="bento-card span-6">
           <div className="bento-icon"><IconShield size={24} /></div>
-          <h3>Prêt entreprise</h3>
+          <h3>Prêt pour l'entreprise</h3>
           <p>Gestion des accès, espaces d'équipe et conformité pour votre organisation.</p>
         </article>
       </section>
 
+      <section className="features-detail">
+        <div className="features-detail-inner">
+          <div className="features-detail-text">
+            <p className="features-eyebrow">Sécurité</p>
+            <h2>Votre confidentialité n'est pas négociable.</h2>
+            <p>
+              Talkeo chiffre l'intégralité de vos données côté client avant tout envoi au serveur.
+              Vos messages, fichiers et créations ne peuvent être lus que par vous et vos
+              destinataires — jamais par Talkeo ni par un tiers.
+            </p>
+            <ul className="features-list">
+              <li>Chiffrement AES-256-GCM de bout en bout</li>
+              <li>Dérivation de clé Argon2id — résistant aux attaques par force brute</li>
+              <li>Aucune donnée en clair stockée côté serveur</li>
+              <li>Vérification d'e-mail obligatoire à l'inscription</li>
+            </ul>
+          </div>
+          <div className="features-detail-visual">
+            <div className="security-card">
+              <div className="security-icon">
+                <IconShield size={32} />
+              </div>
+              <p className="security-label">Chiffrement actif</p>
+              <div className="security-bars">
+                <div className="bar" style={{ width: "100%", background: "var(--primary)" }} />
+                <div className="bar" style={{ width: "85%", background: "#6366f1" }} />
+                <div className="bar" style={{ width: "70%", background: "#0d9488" }} />
+              </div>
+              <p className="security-caption">AES-256-GCM · Argon2id · E2E</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="cta-band">
         <h2>Prêt à transformer votre communication interne ?</h2>
-        <Link to="/inscription" className="btn btn-primary">Démarrer maintenant</Link>
+        <p>Rejoignez des équipes qui font confiance à Talkeo pour leurs échanges confidentiels.</p>
+        <Link to="/inscription" className="btn btn-primary">Démarrer gratuitement</Link>
       </section>
 
       <footer className="marketing-footer">
         <LogoWordmark />
-        <span>© {new Date().getFullYear()} Talkeo</span>
+        <nav className="footer-links" aria-label="Liens pied de page">
+          <Link to="/connexion">Connexion</Link>
+          <Link to="/inscription">Inscription</Link>
+        </nav>
+        <span>© {new Date().getFullYear()} Talkeo — Communication sécurisée</span>
       </footer>
     </div>
-  );
-}
-
-function IconShield(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 24} height={props.size ?? 24} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v5.7c0 4.54-3.07 8.83-7 9.93-3.93-1.1-7-5.39-7-9.93v-5.7l7-3.12z" />
-    </svg>
   );
 }

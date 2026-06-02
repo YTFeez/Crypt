@@ -10,7 +10,7 @@ import {
 } from "../lib/api";
 import { subscribeMessages } from "../lib/subscriptions";
 import type { Conversation, Message } from "../lib/types";
-import { IconLock } from "../components/Icons";
+import { IconLock, IconPaperclip, IconMic, IconSend, IconPlus } from "../components/Icons";
 import { PageLoader } from "../components/PageLoader";
 import { SkeletonList, SkeletonChat } from "../components/Skeleton";
 import { LoaderBrand } from "../components/LoaderBrand";
@@ -110,7 +110,12 @@ export function MessagesPage() {
     <div className="page-inner" style={{ paddingTop: 0, maxWidth: "100%" }}>
       <div className="split-messenger">
         <aside className="conv-sidebar">
-          <div className="conv-sidebar-header">Discussions</div>
+          <div className="conv-sidebar-header">
+            Discussions
+            <Link to="/app/amis" className="conv-new-btn" title="Nouveau message">
+              <IconPlus size={16} />
+            </Link>
+          </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0.35rem" }}>
             {listLoading ? (
               <SkeletonList rows={5} />
@@ -177,10 +182,16 @@ export function MessagesPage() {
               <form className="compose-bar" onSubmit={onSend}>
                 <input type="file" ref={fileRef} hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile("file", f); e.target.value = ""; }} />
                 <input type="file" ref={voiceRef} hidden accept="audio/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile("voice", f); e.target.value = ""; }} />
-                <button type="button" className="compose-icon" title="Fichier" onClick={() => fileRef.current?.click()} aria-label="Joindre un fichier">📎</button>
-                <button type="button" className="compose-icon" title="Vocal" onClick={() => voiceRef.current?.click()} aria-label="Message vocal">🎤</button>
+                <button type="button" className="compose-icon" title="Joindre un fichier" onClick={() => fileRef.current?.click()} aria-label="Joindre un fichier">
+                  <IconPaperclip size={18} />
+                </button>
+                <button type="button" className="compose-icon" title="Message vocal" onClick={() => voiceRef.current?.click()} aria-label="Message vocal">
+                  <IconMic size={18} />
+                </button>
                 <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Aa" autoComplete="off" />
-                <button type="submit" className="compose-icon" style={{ background: "var(--primary)", color: "#fff" }} aria-label="Envoyer">➤</button>
+                <button type="submit" className="compose-send" aria-label="Envoyer">
+                  <IconSend size={17} />
+                </button>
               </form>
             </>
           ) : (
