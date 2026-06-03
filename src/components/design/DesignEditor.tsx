@@ -202,7 +202,7 @@ export function DesignEditor({ doc, onChange, onRename, onArchive }: Props) {
     } else if (type === "rect") {
       el = createElement("rect", { x: cx, y: cy, width: 200, height: 120, fill: "#0866ff", borderRadius: 8, zIndex: z });
     } else if (type === "circle") {
-      el = createElement("circle", { x: cx, y: cy, width: 140, height: 140, fill: "#7c3aed", zIndex: z });
+      el = createElement("circle", { x: cx, y: cy, width: 140, height: 140, fill: "#7b3fe4", zIndex: z });
     } else if (type === "triangle") {
       el = createElement("triangle", { x: cx, y: cy, width: 120, height: 100, fill: "#06b6d4", zIndex: z });
     } else {
