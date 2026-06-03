@@ -1,7 +1,6 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { Logo } from "../components/Logo";
-import { ParticleNetwork } from "../components/ParticleNetwork";
 import {
   IconMessage,
   IconUser,
@@ -32,7 +31,6 @@ export function AppLayout() {
 
   return (
     <div className="app-shell">
-      <ParticleNetwork variant="light" />
       <header className="app-topbar">
         <Link to="/app" className="logo-wordmark" style={{ marginRight: "auto" }}>
           <Logo size={44} />

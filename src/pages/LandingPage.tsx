@@ -55,18 +55,22 @@ export function LandingPage() {
       </header>
 
       <section className="hero">
+        <div className="hero-glow-orbs" aria-hidden="true" />
         <p className="hero-eyebrow">
           <IconLock size={14} />
           Chiffrement de bout en bout
         </p>
-        <h1>Talkeo.<br />La messagerie pro pour les équipes.</h1>
+        <h1>
+          <span className="hero-gradient-text">Talkeo.</span>
+          <br />La messagerie pro<br />pour les équipes exigeantes.
+        </h1>
         <p className="hero-lead">
-          Messages, appels, dossiers et tableaux — une expérience fluide inspirée des meilleures
-          interfaces, avec la sécurité que votre entreprise exige.
+          Messages, appels, dossiers et créations visuelles — une expérience unifiée
+          construite sur la sécurité absolue de vos données.
         </p>
         <div className="hero-actions" id="commencer">
           <Link to={user ? "/app" : "/inscription"} className="btn btn-primary">
-            {user ? "Ouvrir Talkeo" : "Créer un compte gratuit"}
+            {user ? "Ouvrir Talkeo" : "Démarrer gratuitement"}
           </Link>
           {!user ? (
             <button type="button" className="btn btn-secondary" disabled={guestLoading} onClick={() => void tryDemo()}>

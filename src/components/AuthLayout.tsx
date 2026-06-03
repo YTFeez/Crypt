@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LogoWordmark } from "./Logo";
-import { ParticleNetwork } from "./ParticleNetwork";
 
 type Props = {
   title: string;
@@ -25,7 +24,6 @@ export function AuthLayout({
   return (
     <div className="auth-page">
       <aside className="auth-aside" aria-hidden={false}>
-        <ParticleNetwork variant="dark" />
         <div className="auth-aside-inner">
           <Link to="/" className="auth-home-link">
             <LogoWordmark light />
@@ -41,7 +39,6 @@ export function AuthLayout({
         </div>
       </aside>
       <main className="auth-main">
-        <ParticleNetwork variant="light" />
         <div className="auth-card-pro">
           <header className="auth-card-header">
             <h1>{title}</h1>
