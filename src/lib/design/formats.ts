@@ -9,7 +9,11 @@ export type PageFormatId =
   | "instagram"
   | "story"
   | "linkedin"
-  | "flyer";
+  | "flyer"
+  | "youtube"
+  | "twitter"
+  | "facebook"
+  | "business-card";
 
 export type FormatCategory = "print" | "social" | "presentation";
 
@@ -98,6 +102,42 @@ export const PAGE_FORMAT_CHOICES: PageFormatChoice[] = [
     defaultWidth: 1584,
     defaultHeight: 396,
     defaultBackground: "#0a66c2",
+  },
+  {
+    id: "youtube",
+    name: "Miniature YouTube",
+    description: "Vignette vidéo 1280×720 px — recommandée",
+    category: "social",
+    defaultWidth: 1280,
+    defaultHeight: 720,
+    defaultBackground: "#0f172a",
+  },
+  {
+    id: "twitter",
+    name: "Bannière X (Twitter)",
+    description: "Couverture de profil — 1500×500 px",
+    category: "social",
+    defaultWidth: 1500,
+    defaultHeight: 500,
+    defaultBackground: "#15202b",
+  },
+  {
+    id: "facebook",
+    name: "Post Facebook",
+    description: "Format de publication optimale — 1200×630 px",
+    category: "social",
+    defaultWidth: 1200,
+    defaultHeight: 630,
+    defaultBackground: "#f0f2f5",
+  },
+  {
+    id: "business-card",
+    name: "Carte de visite",
+    description: "Format 90×51 mm (landscape) — impression standard",
+    category: "print",
+    defaultWidth: 1050,
+    defaultHeight: 600,
+    defaultBackground: "#ffffff",
   },
 ];
 

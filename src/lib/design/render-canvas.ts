@@ -37,8 +37,18 @@ function roundRect(
 }
 
 export function drawElement(ctx: CanvasRenderingContext2D, el: DesignElement, scale: number) {
+  if (el.hidden) return;
   ctx.save();
   ctx.globalAlpha = el.opacity;
+  if (el.shadow && el.shadow !== "none") {
+    const parts = el.shadow.match(/([-\d.]+)px\s+([-\d.]+)px\s+([-\d.]+)px\s+(rgba?\([^)]+\)|#\w+)/);
+    if (parts) {
+      ctx.shadowOffsetX = Number(parts[1]) * scale;
+      ctx.shadowOffsetY = Number(parts[2]) * scale;
+      ctx.shadowBlur = Number(parts[3]) * scale;
+      ctx.shadowColor = parts[4] ?? "rgba(0,0,0,0.25)";
+    }
+  }
   const x = el.x * scale;
   const y = el.y * scale;
   const w = el.width * scale;
@@ -98,11 +108,13 @@ export function drawElement(ctx: CanvasRenderingContext2D, el: DesignElement, sc
   } else if (el.type === "text" && el.content) {
     const size = (el.fontSize ?? 24) * scale;
     const weight = el.fontWeight ?? 600;
-    ctx.font = `${weight} ${size}px ${el.fontFamily ?? "Inter, sans-serif"}`;
+    const style = el.fontStyle === "italic" ? "italic " : "";
+    ctx.font = `${style}${weight} ${size}px ${el.fontFamily ?? "Inter, sans-serif"}`;
     ctx.fillStyle = el.fill;
     ctx.textBaseline = "top";
     const lines = el.content.split("\n");
     const lh = (el.lineHeight ?? 1.25) * size;
+    ctx.letterSpacing = el.letterSpacing ? `${el.letterSpacing}em` : "0em";
     lines.forEach((line, i) => {
       let tx = x;
       if (el.textAlign === "center") tx = x + w / 2;
@@ -128,7 +140,7 @@ export async function renderDesignToCanvas(
   ctx.fillStyle = doc.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const sorted = [...doc.elements].sort((a, b) => a.zIndex - b.zIndex);
+  const sorted = [...doc.elements].filter((e) => !e.hidden).sort((a, b) => a.zIndex - b.zIndex);
   for (const el of sorted) {
     if (el.type === "image" && el.src) {
       try {
