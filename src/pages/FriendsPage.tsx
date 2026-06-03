@@ -94,7 +94,7 @@ export function FriendsPage() {
               placeholder="Handle ou nom…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              style={{ width: "100%", padding: "0.65rem", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius)" }}
+              style={{ width: "100%", padding: "0.65rem", background: "var(--bg-subtle)", border: "1px solid var(--border)", borderRadius: "var(--radius)" }}
             />
             {results.map((p) => (
               <div key={p.id} className="row" style={{ justifyContent: "space-between" }}>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthProvider";
+import { IconX } from "../components/Icons";
 import {
   getDesigns,
   createDesign,
@@ -161,7 +162,7 @@ export function DesignStudioPage() {
                     title="Supprimer"
                     onClick={() => void removeDesign(d.id)}
                   >
-                    ×
+                    <IconX size={14} />
                   </button>
                 </div>
               ))

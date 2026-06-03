@@ -1060,6 +1060,25 @@ button { cursor: pointer; border: none; background: none; }
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
+/* Select standalone (hors .field) */
+.field-select {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  outline: none;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+.field-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
 /* Champ mot de passe avec bouton afficher/masquer */
 .input-wrap {
   position: relative;
@@ -2364,7 +2383,8 @@ button { cursor: pointer; border: none; background: none; }
 
 [data-theme="dark"] .field input,
 [data-theme="dark"] .field textarea,
-[data-theme="dark"] .field select {
+[data-theme="dark"] .field select,
+[data-theme="dark"] .field-select {
   background: #0d1117;
   border-color: var(--border);
   color: var(--text);

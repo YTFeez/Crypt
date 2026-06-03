@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { getConversations, getActiveCalls, startCall, endCall } from "../lib/api";
 import type { Call, Conversation } from "../lib/types";
 import { subscribeCalls } from "../lib/subscriptions";
+import { IconPhone, IconVideo } from "../components/Icons";
 
 export function CallsPage() {
   const { user } = useAuth();
@@ -58,23 +59,41 @@ export function CallsPage() {
         <div className="panel">
           <div className="panel-header"><strong>Démarrer un appel</strong></div>
           <div className="panel-body stack">
-            <select
-              value={selectedConv}
-              onChange={(e) => setSelectedConv(e.target.value)}
-              style={{ padding: "0.65rem", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "var(--radius)" }}
-            >
-              {conversations.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name ?? (c.type === "dm" ? "Conversation directe" : "Groupe")}
-                </option>
-              ))}
-            </select>
+            {conversations.length === 0 ? (
+              <p className="muted">Aucune conversation disponible. Ajoutez un contact d'abord.</p>
+            ) : (
+              <select
+                value={selectedConv}
+                onChange={(e) => setSelectedConv(e.target.value)}
+                className="field-select"
+              >
+                {conversations.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name ?? (c.type === "dm" ? "Conversation directe" : "Groupe")}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="row">
-              <button type="button" className="btn btn-primary" onClick={() => void launch("audio")}>
-                📞 Appel audio
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ gap: "0.5rem" }}
+                disabled={!selectedConv}
+                onClick={() => void launch("audio")}
+              >
+                <IconPhone size={16} />
+                Appel audio
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => void launch("video")}>
-                📹 Visioconférence
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ gap: "0.5rem" }}
+                disabled={!selectedConv}
+                onClick={() => void launch("video")}
+              >
+                <IconVideo size={16} />
+                Visioconférence
               </button>
             </div>
           </div>
@@ -103,6 +122,9 @@ export function CallsPage() {
             )}
             {localStream ? (
               <div style={{ marginTop: "1rem" }}>
+                <p className="muted" style={{ fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+                  Votre flux local (micro/caméra actif)
+                </p>
                 <video
                   autoPlay
                   muted
@@ -110,7 +132,7 @@ export function CallsPage() {
                   ref={(el) => {
                     if (el) el.srcObject = localStream;
                   }}
-                  style={{ width: "100%", maxWidth: 320, borderRadius: "var(--radius)", marginTop: 8 }}
+                  style={{ width: "100%", maxWidth: 320, borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
                 />
               </div>
             ) : null}
