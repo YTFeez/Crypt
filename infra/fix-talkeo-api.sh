@@ -73,7 +73,8 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=${SRC_DIR}/server
-EnvironmentFile=${ENV_FILE}
+EnvironmentFile=-${ENV_FILE}
+Environment=NODE_ENV=production
 ExecStart=${NODE_BIN} src/index.js
 Restart=on-failure
 RestartSec=5

@@ -35,6 +35,8 @@ ensure_env() {
   fi
 }
 
+mkdir -p "${APP_DIR}/data"
+
 if [ -f "${ENV_FILE}" ]; then
   log "Variables .env"
   cp "${ENV_FILE}" .env
@@ -88,6 +90,7 @@ fi
 NODE_BIN=$(which node 2>/dev/null || echo "/usr/bin/node")
 if [ -f /etc/systemd/system/talkeo-api.service ]; then
   sed -i "s|^ExecStart=.*|ExecStart=${NODE_BIN} src/index.js|" /etc/systemd/system/talkeo-api.service
+  sed -i 's|^EnvironmentFile=/|EnvironmentFile=-/|' /etc/systemd/system/talkeo-api.service 2>/dev/null || true
   systemctl daemon-reload 2>/dev/null || true
 fi
 cd "${SRC_DIR}"

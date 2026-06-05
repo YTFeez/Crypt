@@ -206,8 +206,38 @@ nginx : `/etc/nginx/sites-available/crypt`
 
 ## Dépannage
 
+### Erreur 500 nginx + talkeo-api en boucle
+
+Symptômes dans les logs : `.env` manquant, `src/index.js` introuvable, service `talkeo-api` qui redémarre en boucle.
+
+**Correction en une commande :**
+
+```bash
+cd /opt/crypt/src && git pull
+sudo bash infra/fix-500.sh
+```
+
+Ou étape par étape :
+
+```bash
+sudo bash /opt/crypt/src/infra/fix-talkeo-api.sh   # .env + systemd
+bash /opt/crypt/src/infra/deploy.sh                 # rebuild web-dist
+```
+
+Vérifications :
+
+```bash
+ls -la /opt/crypt/web-dist/index.html    # doit exister (sinon nginx → 500)
+ls -la /opt/crypt/.env                   # JWT + chemins DB
+systemctl status talkeo-api              # doit être active
+journalctl -u talkeo-api -n 30           # pas d'ERREUR JWT
+curl http://127.0.0.1:8787/api/health    # {"ok":true,...}
+```
+
 | Problème | Solution |
 |----------|----------|
+| **500 nginx** | `sudo bash /opt/crypt/src/infra/fix-500.sh` |
+| **talkeo-api boucle** | `.env` manquant → `fix-talkeo-api.sh` ou `fix-500.sh` |
 | Page blanche | `bash /opt/crypt/src/infra/deploy.sh` puis Ctrl+F5 |
 | 404 sur `/connexion` | `nginx -t` — `try_files` doit pointer vers `index.html` |
 | Inscription échoue | Effacer données du site dans le navigateur ; HTTPS actif |
